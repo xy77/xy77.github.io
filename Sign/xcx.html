@@ -1,0 +1,3089 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+	<link rel="icon" href="../ico.svg" type="image/svg+xml">
+    <style>
+        :root {
+            --primary-blue: #1677ff;
+            --link-blue: #1890ff;
+            --hover-blue: #4096ff;
+            --wechat-green: #07c160;
+            --sidebar-bg: #001529;
+            --sidebar-text: #a6adb4;
+            --sidebar-active: #1677ff;
+            --bg-body: #f0f2f5;
+            --border-color: #d9d9d9;
+            --text-main: #333;
+            --text-secondary: #666;
+            --text-gray: #999;
+            --cancel-orange: #ff4d4f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- 左侧菜单栏 --- */
+        .sidebar {
+            width: 240px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            padding-top: 20px;
+            color: #fff;
+            flex-shrink: 0;
+            position: relative;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* 需求5：左侧菜单栏悬浮按钮 */
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .sidebar-toggle-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .sidebar-restore-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--sidebar-bg);
+            border-radius: 50%;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 999;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .sidebar-title {
+            padding: 0 24px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+            white-space: nowrap; /* 防止折叠时文字换行 */
+        }
+
+        .menu-item {
+            padding: 16px 24px;
+            cursor: pointer;
+            color: var(--sidebar-text);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+
+        .menu-item:hover {
+            color: #fff;
+        }
+
+        .menu-item.active {
+            background-color: var(--sidebar-active);
+            color: #fff;
+        }
+
+        /* --- 右侧主内容区 --- */
+        .main-content {
+            flex: 1;
+            position: relative;
+            background-color: #fff;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6));
+        }
+
+        .view-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .view-container.active {
+            display: flex;
+        }
+
+        /* ================= WEB 登录样式 (主弹窗) ================= */
+        .login-modal {
+            width: 680px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 10;
+            color: rgba(255,255,255,0.8);
+            font-size: 24px;
+            line-height: 24px;
+            text-align: center;
+            font-weight: 300;
+        }
+        .close-modal-btn:hover {
+            color: #fff;
+        }
+        .sub-auth-modal .close-modal-btn {
+             color: #999;
+             display: none; 
+        }
+        .sub-auth-modal .close-modal-btn:hover {
+             color: #333;
+        }
+
+        .modal-header {
+            height: 120px;
+            background: linear-gradient(135deg, #3b9eff 0%, #1677ff 100%);
+            position: relative;
+            padding: 30px;
+            color: #fff;
+            display: flex;
+            align-items: center; 
+        }
+
+        .decoration-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .c1 { width: 100px; height: 100px; top: -20px; right: 150px; }
+        .c2 { width: 60px; height: 60px; top: 40px; right: 80px; }
+        .c3 { width: 80px; height: 80px; top: 10px; right: -20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 70%); }
+
+        .brand-container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            backdrop-filter: blur(4px);
+        }
+        
+        .brand-text {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .modal-body { display: flex; padding: 40px 20px 20px; min-height: 360px; }
+        
+        .login-section { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 0 10px; 
+            justify-content: center; 
+            position: relative; 
+        }
+
+        .login-section:first-of-type {
+            flex: 0 0 380px; 
+        }
+
+        .login-section:last-of-type {
+            flex: 1; 
+        }
+
+        .divider { width: 1px; background-color: #eee; margin: 0 10px; }
+        
+        .qr-container {
+            width: 180px; height: 180px; border: 1px solid #eee; padding: 10px; border-radius: 8px;
+            background: #fff; margin-bottom: 20px;
+        }
+        .qr-code {
+            width: 100%; height: 100%; opacity: 0.8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Cpath d='M10 10h4v4h-4z'/%3E%3Cpath d='M7 7h.01'/%3E%3Cpath d='M17 7h.01'/%3E%3Cpath d='M7 17h.01'/%3E%3Cpath d='M17 17h.01'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .wechat-label {
+            display: flex;
+            align-items: center;
+            font-size: 16px; 
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .wechat-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            fill: var(--wechat-green);
+        }
+
+        .form-content { width: 100%; max-width: 320px; }
+        .form-group { margin-bottom: 20px; }
+        
+        .input-wrapper {
+            display: flex; align-items: center; border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 4px 12px; height: 44px; transition: all 0.3s;
+        }
+        .input-wrapper:hover {
+            border-color: var(--hover-blue);
+        }
+        .input-wrapper:focus-within { 
+            border-color: var(--primary-blue); 
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2); 
+        }
+        
+        .input-field { border: none; flex: 1; font-size: 14px; color: var(--text-main); background: transparent; }
+        .prefix { color: var(--text-main); margin-right: 12px; font-size: 14px; display: flex; align-items: center; }
+        
+        .verify-btn { 
+            border: none; 
+            background: none; 
+            color: #1890ff; 
+            font-size: 14px; 
+            cursor: pointer; 
+            padding-left: 12px; 
+            border-left: 1px solid #eee; 
+            white-space: nowrap; 
+        }
+        
+        .above-btn-area {
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 12px;
+            min-height: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-footer-agreement {
+            width: 100%;
+            padding: 0 20px 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+        
+        .agreement-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .agreement-checkbox {
+            margin-right: 6px;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--primary-blue);
+        }
+
+        .agreement-text a {
+            color: var(--text-gray);
+            text-decoration: underline;
+            margin: 0 2px;
+            font-weight: 500;
+        }
+
+        .password-links {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .action-link {
+            color: var(--link-blue);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .action-link:hover { text-decoration: underline; }
+
+        .submit-btn {
+            width: 100%; height: 44px; background-color: var(--primary-blue); color: #fff;
+            border: none; border-radius: 6px; font-size: 16px; cursor: pointer;
+            max-width: 320px;
+        }
+        .submit-btn:hover { background-color: var(--hover-blue); }
+
+        .switch-mode-btn {
+            margin-top: 16px;
+            color: var(--link-blue);
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .switch-mode-btn:hover { text-decoration: underline; }
+
+        /* ================= 独立子弹窗样式 ================= */
+        .sub-auth-modal {
+            width: 480px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 30px 40px;
+        }
+        
+        .sub-auth-modal .submit-btn {
+            max-width: 100%;
+        }
+
+        .sub-modal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .sub-modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+            text-align: center;
+            position: absolute;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+        }
+
+        .back-btn {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+        .back-btn:hover { color: var(--primary-blue); }
+        .back-icon { margin-right: 4px; font-size: 16px; }
+
+        .sub-agreement-area {
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .app-view-bg {
+            background-color: #fff; 
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-simulator {
+            width: 428px;
+            height: 926px;
+            background-color: #f5f5f5;
+            box-shadow: 0 0 40px rgba(0,0,0,0.1);
+            border-radius: 40px;
+            border: none; 
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-status-bar {
+            height: 44px;
+            background: transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+            z-index: 20;
+            position: absolute;
+            top: 0;
+            width: 100%;
+        }
+
+        /* 需求1：更新 Header 布局，确保左侧返回，标题居中 */
+        .mini-app-header {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 17px;
+            font-weight: 500;
+            background: #f5f5f5;
+            position: relative;
+            flex-shrink: 0;
+            z-index: 20;
+            margin-top: 44px; /* offset for status bar absolute positioning */
+        }
+        
+        .nav-back {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: #333;
+            z-index: 10;
+            width: 87px; /* 设定宽度与右侧胶囊平衡，确保标题视觉居中 */
+        }
+        
+        /* 需求3：修改 Header 样式 */
+        .mini-app-header.home-header {
+             justify-content: flex-start;
+        }
+        
+        /* 需求3：调整标题位置 */
+        .header-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            font-size: 17px;
+            pointer-events: none;
+            width: 100%;
+            text-align: center;
+        }
+        
+        /* 需求3：首页 Header 左侧布局 */
+        .header-left-area {
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .mini-logo {
+            width: 24px;
+            height: 24px;
+            background: #1677ff;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        /* 需求1：胶囊背景色改为深色 */
+        .capsule-btn {
+            position: absolute; 
+            width: 87px;
+            height: 32px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.5); /* 需求1 修改 */
+            top: 6px; 
+            right: 16px;
+            z-index: 25;
+        }
+
+        .phone-content {
+            flex: 1;
+            padding: 0 30px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f5f5f5;
+            position: relative; /* 为绝对定位元素提供锚点 */
+        }
+        
+        .app-page-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px; /* Logo 区域的上边距 */
+            padding-bottom: 40px; /* 底部协议的上边距 */
+        }
+        
+        #app-login-input-view {
+            display: none;
+        }
+
+        .app-logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: #e0e0e0;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .app-name { font-size: 20px; font-weight: 600; margin-bottom: 0; }
+
+        .app-btn-primary {
+            width: 100%; height: 48px; 
+            background-color: #1890ff; 
+            color: #fff;
+            border: none; border-radius: 50px; 
+            font-size: 16px; font-weight: 500; cursor: pointer;
+            margin-bottom: 16px; display: flex; align-items: center; justify-content: center;
+        }
+        .app-btn-primary:hover { background-color: var(--hover-blue); }
+
+        .app-btns-container {
+            width: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            margin-top: 150px;
+        }
+
+        .app-btn-sub {
+            width: 100%; height: 48px; background: transparent; 
+            border: 1px solid #d9d9d9;
+            border-radius: 50px; color: var(--text-main); font-size: 15px; cursor: pointer;
+        }
+        .app-btn-sub:hover { background-color: rgba(0,0,0,0.05); }
+
+        .app-agreement-area {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-gray);
+            margin-top: 20px;
+        }
+        .app-agreement-area a {
+            color: #1890ff; 
+            text-decoration: none;
+        }
+
+        .app-input-form {
+            width: 100%;
+            margin-top: 40px;
+        }
+        .app-input-form .input-wrapper {
+            margin-bottom: 16px;
+            background: #fff;
+        }
+
+        .app-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 10000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* ================= 自定义确认弹窗样式 ================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .confirm-box {
+            background: #fff;
+            border-radius: 8px;
+            width: 320px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        .confirm-text {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .confirm-text a {
+            color: #1890ff; 
+            text-decoration: underline; 
+            font-weight: 500;
+        }
+        .confirm-btns {
+            display: flex;
+            gap: 12px;
+        }
+        .confirm-btn {
+            flex: 1;
+            height: 36px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+        .btn-confirm {
+            background: var(--primary-blue);
+            color: #fff;
+        }
+
+        /* ================= 咨询首页样式（新增） ================= */
+        .consult-page-content {
+            flex: 1;
+            width: 100%;
+            display: block; 
+            position: relative;
+            background: #f5f5f5;
+            height: 100%;
+        }
+        
+        .chat-list {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            padding: 20px 15px;
+            /* 需求2：因增加了更多功能按钮，增加底部padding防止遮挡 */
+            padding-bottom: 110px; 
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: padding-bottom 0.2s, padding-left 0.3s;
+        }
+
+        /* 新增：分享模式下为复选框留出左侧空间 */
+        .chat-list.share-mode {
+            padding-left: 50px;
+        }
+
+        /* 消息包裹器，支持每轮消息打组与复选框 */
+        .msg-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .msg-wrapper.user-row {
+            align-items: flex-end;
+        }
+        .msg-wrapper.ai-row {
+            align-items: flex-start;
+        }
+
+        /* 需求1：分享选择复选框样式 */
+        .share-checkbox {
+            position: absolute;
+            left: -35px; /* 相对 wrapper 居左偏移，正好落在 chat-list 的 padding 里 */
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #fff;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .chat-list.share-mode .share-checkbox {
+            display: flex;
+        }
+        .share-checkbox.checked {
+            background-color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .chat-message {
+            max-width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-all;
+            position: relative;
+            margin-bottom: 5px;
+            animation: fadeIn 0.2s ease-out;
+            cursor: default;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-message.user-msg {
+            background-color: #1890ff;
+            color: #ffffff;
+            border-top-right-radius: 2px;
+        }
+
+        /* 仅最新一条用户消息显示下划线 */
+        .chat-message.user-msg.latest {
+            text-decoration: underline;
+            text-decoration-color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+        }
+
+        .chat-message.ai-msg {
+            background-color: #fff;
+            color: #333;
+            border-top-left-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            white-space: pre-wrap; 
+        }
+
+        .msg-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            width: 100%;
+        }
+        .msg-action-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .msg-action-item:hover {
+            color: var(--primary-blue);
+        }
+
+        /* 需求5：分享模式下不显示操作按钮 */
+        .chat-list.share-mode .msg-actions {
+            display: none !important;
+        }
+
+        .consult-logo-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 40px; 
+            margin-bottom: 20px;
+        }
+
+        .bottom-dock {
+            position: absolute;
+            bottom: -0;
+            left: 0;
+            width: 100%;
+            z-index: 50;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 需求2：更多功能标签容器 */
+        .tags-container {
+            display: flex;
+            align-items: center;
+            align-self: flex-start;
+            width: 100%;
+            margin-bottom: 5px;
+            padding-left: 15px; /* 与下方输入框wrapper padding-left对齐 */
+            padding-right: 15px; /* 新增：保证右侧滚动也有留白 */
+            gap: 10px; /* 更多功能与我的权益显示间隔 */
+            overflow-x: auto; /* 新增：允许横向滚动 */
+            scrollbar-width: none; /* 新增：隐藏滚动条（Firefox） */
+        }
+
+        /* 新增：隐藏 Webkit 浏览器的滚动条 */
+        .tags-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 需求2：更多功能标签 */
+        .more-func-tag {
+            flex-shrink: 0; /* 新增：防止在容器溢出时被压缩 */
+            align-self: flex-start;
+            background: #fff;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 50px; /* 全圆角 */
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 2px rgba(24, 144, 255, 0.2); /* 20% opacity of #1890ff */
+            cursor: pointer;
+            z-index: 51;
+            position: relative;
+        }
+        
+        .more-func-icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            fill: #333;
+        }
+
+        /* 需求4：未登录引导遮罩 */
+        .login-guide-overlay {
+            position: absolute;
+            bottom: 50px; /* 向上偏移 */
+            left: 15px;
+            right: 15px;
+            height: 60px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 8px;
+            z-index: 60;
+            display: none; /* 默认隐藏，JS控制 */
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            backdrop-filter: blur(2px);
+        }
+        
+        .guide-text {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .guide-login-btn {
+            background: var(--primary-blue);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .consult-bottom-bar {
+            position: relative;
+            width: 100%;
+            background: #f5f5f5; 
+            display: flex;
+            align-items: flex-end; 
+            padding: 10px 15px;
+            transition: background-color 0.2s; 
+            padding-bottom: 30px; /* 增加底部安全区 */
+        }
+        
+        .consult-bottom-bar.recording-active {
+            align-items: center; 
+            justify-content: center;
+            height: 60px; 
+        }
+        
+        .bar-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            cursor: pointer;
+            color: #666;
+            margin: 0 5px; 
+            display: block; 
+        }
+        
+        .bar-icon.hidden {
+            display: none;
+        }
+        
+        /* 需求7：停止按钮样式优化 */
+        .icon-stop {
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            fill: #fff; /* 白色图标 */
+            display: none;
+            margin: 0 5px;
+            background-color: #ff4d4f; /* 红色背景 */
+            border-radius: 50%; /* 圆形 */
+            padding: 6px;
+            box-shadow: 0 2px 6px rgba(255, 77, 79, 0.3);
+        }
+        .icon-stop.visible {
+            display: block;
+        }
+        
+        .bar-icon.left-icon {
+            margin-right: 8px;
+            margin-bottom: 8px; /* 对齐输入框底部 */
+        }
+        
+        .recording-tip-overlay {
+            position: absolute;
+            bottom: 100%; 
+            left: 0; 
+            width: 100%;
+            text-align: center;
+            display: none;
+            pointer-events: none;
+            z-index: 60;
+            margin-bottom: 10px;
+        }
+        .recording-tip-text {
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: inline-block;
+        }
+        
+        .consult-input-wrapper {
+            flex: 1;
+            margin: 0; 
+            min-height: 40px; 
+            background: #fff;
+            border-radius: 20px; 
+            display: flex;
+            align-items: flex-end; 
+            padding: 8px 10px; 
+            cursor: text;
+            position: relative;
+        }
+        
+        .consult-input-field {
+            flex: 1;
+            background: transparent;
+            border: none;
+            resize: none; 
+            outline: none;
+            font-size: 15px;
+            color: #333;
+            line-height: 1.5; 
+            height: 23px; 
+            max-height: 69px; 
+            padding: 0 5px;
+            margin-bottom: 2px; 
+            overflow-y: hidden; 
+            font-family: inherit;
+        }
+        
+        .consult-input-field::placeholder {
+            color: #999;
+        }
+        
+        /* 需求8：按住说话按钮高度与输入框一致 */
+        .btn-voice-hold {
+            flex: 1;
+            height: 40px; /* 改为固定高度，约等于输入框外层高度 */
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            user-select: none;
+            cursor: pointer;
+            margin: 0 5px;
+            border-radius: 20px;
+        }
+        .btn-voice-hold.active {
+            display: flex;
+        }
+        
+        .btn-voice-hold.recording {
+            color: var(--primary-blue);
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .btn-voice-hold.canceling {
+            color: var(--cancel-orange);
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .send-btn {
+            background: #1677ff;
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 4px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-left: 5px;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            display: none; 
+        }
+        .send-btn.active {
+            display: block;
+        }
+
+        .auth-drawer-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .auth-drawer-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .auth-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 101;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .auth-drawer.active {
+            transform: translateY(0);
+        }
+
+        /* 需求6：微信授权手机号专用抽屉 */
+        .wechat-phone-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55%; /* 55vh relative to container */
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 102; /* 比普通 drawer 高 */
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .wechat-phone-drawer.active {
+            transform: translateY(0);
+        }
+
+        .drawer-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .drawer-desc {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .drawer-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 10px;
+            fill: var(--wechat-green);
+        }
+
+        /* 虚拟键盘样式 */
+        .virtual-keyboard {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            width: 100%;
+            height: 0;
+            background: #d1d5db;
+            overflow: hidden;
+            transition: height 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .keyboard-hint {
+            margin-top: -20px;
+        }
+        
+        .keyboard-collapse-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            padding: 5px;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .keyboard-collapse-btn:hover { opacity: 1; }
+
+        .virtual-keyboard.active {
+            height: 280px;
+        }
+
+        /* 右键菜单样式 - iOS 风格 */
+        .context-menu {
+            position: fixed; 
+            background-color: rgba(0, 0, 0, 0.85); 
+            color: #fff; 
+            border-radius: 12px; 
+            padding: 0; 
+            z-index: 3000; 
+            display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.05);
+            min-width: 120px;
+        }
+        
+        .context-menu::after {
+            display: none; 
+        }
+
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row; 
+            align-items: center;
+        }
+
+        .context-menu li {
+            padding: 10px 16px;
+            cursor: pointer;
+            position: relative;
+            font-weight: 500;
+        }
+        
+        .context-menu li:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 1px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .context-menu li:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .context-menu li:first-child {
+            border-radius: 12px 0 0 12px;
+        }
+        
+        .context-menu li:last-child {
+            border-radius: 0 12px 12px 0;
+        }
+        
+        /* App登录 - 运营商登录页面相关样式 */
+        .current-phone-display {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 40px 0 10px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+        }
+        /* 需求2：一键登录页面的号码右侧小按钮 */
+        .change-num-btn {
+            font-size: 14px;
+            color: #1677ff;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        
+        .operator-tag {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 40px;
+        }
+        .other-login-section {
+            margin-top: auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .other-login-title {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 20px;
+            position: relative;
+            width: 100%;
+            text-align: center;
+        }
+        .other-login-title::before, .other-login-title::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 60px;
+            height: 1px;
+            background: #eee;
+        }
+        .other-login-title::before { right: 55%; }
+        .other-login-title::after { left: 55%; }
+        
+        .login-methods-grid {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .method-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .method-icon-circle {
+            width: 44px;
+            height: 44px;
+            border: 1px solid #e8e8e8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: #fff;
+        }
+        .method-item:hover .method-icon-circle {
+            border-color: #d9d9d9;
+            background: #fafafa;
+        }
+        .method-icon {
+            width: 22px;
+            height: 22px;
+            fill: #666;
+        }
+        .method-name {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* 需求4：App分段控制器样式 (已废弃原本的tabs，但保留类名以防他用) */
+        .app-login-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+            padding: 0 20px;
+        }
+        .app-login-tab {
+            font-size: 16px;
+            color: #666;
+            margin: 0 15px;
+            padding-bottom: 8px;
+            cursor: pointer;
+            position: relative;
+        }
+        .app-login-tab.active {
+            color: #333;
+            font-weight: 600;
+        }
+        .app-login-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            background: #1677ff;
+            border-radius: 2px;
+        }
+
+        .login-form-group {
+            display: none;
+            width: 100%;
+        }
+        .login-form-group.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 新增需求1：回到底部悬浮按钮 */
+        .scroll-bottom-btn {
+            position: absolute;
+            bottom: 120px; /* 位于输入框之上 */
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 20px;
+            padding: 6px 14px;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--primary-blue);
+            cursor: pointer;
+            z-index: 45;
+            border: 1px solid #eee;
+        }
+        .scroll-bottom-btn:hover {
+            background: #f0f2f5;
+        }
+
+        /* 需求3：页面下1/3分享面板样式 */
+        .share-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 33%;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        .share-panel.active {
+            transform: translateY(0);
+        }
+        .share-panel-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+            position: relative;
+        }
+        .close-share {
+            position: absolute;
+            right: 20px;
+            top: 15px;
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        .share-options {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+            justify-content: space-around;
+        }
+        .share-opt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            width: 65px;
+        }
+        .share-opt-icon {
+            width: 50px;
+            height: 50px;
+            background: #f5f5f5;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+        }
+        .share-opt-text {
+            font-size: 12px;
+            color: #333;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* 语音识别动态抽屉及全屏编辑样式 */
+        .voice-recognize-drawer {
+            position: absolute;
+            bottom: 0; left: 0; width: 100%;
+            height: 40%;
+            max-height: 60%;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 105; /* 高于底边栏 */
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out, height 0.2s ease-out;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+        }
+        .voice-recognize-drawer.active {
+            transform: translateY(0);
+        }
+        .voice-recognize-drawer.fullscreen {
+            height: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0;
+            z-index: 200; /* 全屏覆盖 */
+            padding-top: 50px; /* 为顶栏留出安全区 */
+        }
+        .voice-drawer-header {
+            display: none; /* 默认隐藏，仅在全屏模式下显示 */
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .voice-recognize-drawer.fullscreen .voice-drawer-header {
+            display: flex;
+        }
+        .voice-drawer-collapse {
+            color: #666;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .voice-recognize-textarea {
+            flex: 1;
+            width: 100%;
+            border: none;
+            resize: none;
+            outline: none;
+            font-size: 16px;
+            color: #333;
+            line-height: 1.6;
+            background: transparent;
+        }
+
+        /* 需求修改：新增抽屉底部按钮区样式 */
+        .voice-drawer-bottom-bar {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-shrink: 0;
+            padding-bottom: 20px; /* 适配底部安全区 */
+        }
+        .voice-btn-large {
+            width: 100%;
+            height: 48px;
+            border-radius: 24px;
+            background: rgba(0,0,0,0.05);
+            color: var(--primary-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 500;
+            user-select: none;
+        }
+        .voice-preview-btns {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .voice-btn-cancel, .voice-btn-send {
+            width: 72px; /* 固定宽度，提供稳固按键区 */
+            height: 44px;
+            border-radius: 22px;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+        .voice-btn-send {
+            background: var(--primary-blue);
+            color: #fff;
+        }
+        .voice-btn-continue {
+            flex: 1; /* 中间录音按钮撑满剩余空间 */
+            height: 48px;
+            border-radius: 24px;
+            background: rgba(0,0,0,0.05);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 500;
+            user-select: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        /* 全屏时隐藏底栏 */
+        .voice-recognize-drawer.fullscreen .voice-drawer-bottom-bar {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 需求5：恢复侧边栏按钮 -->
+    <div id="restore-sidebar-btn" class="sidebar-restore-btn" onclick="toggleSidebar()" title="展开菜单">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+
+    <!-- 左侧菜单 -->
+    <aside class="sidebar" id="sidebar">
+        <!-- 需求5：折叠按钮 -->
+        <div class="sidebar-toggle-btn" onclick="toggleSidebar()" title="收起菜单">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </div>
+
+        <div class="sidebar-title">页面</div>
+        <div class="menu-item" onclick="window.location.href='webapp.html'">Web 登录</div>
+        <div class="menu-item" onclick="window.location.href='webapp.html'">App登录</div>
+        <div class="menu-item active" onclick="switchView('app-home')">小程序</div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+
+        <!-- 小程序登录视图 (保留代码但隐藏菜单入口) -->
+        <div id="view-app" class="view-container">
+            <div class="app-view-bg">
+                <div class="phone-simulator">
+                    <div id="app-toast" class="app-toast">登录成功</div>
+                    <div class="phone-status-bar"><span>9:41</span><span>5G</span></div>
+                    <div class="mini-app-header">
+                        <div class="nav-back" onclick="handleAppBack()"><span class="back-icon">&lt;</span> 返回</div>
+                        <span class="header-title">登录</span>
+                        <div class="capsule-btn"></div>
+                    </div>
+                    <div class="phone-content">
+                        <div id="app-home-view" class="app-page-view">
+                            <div class="app-logo-placeholder">logo</div>
+                            <div class="app-name">木瓜法宝</div>
+                            <div class="app-btns-container">
+                                <button class="app-btn-primary" id="app-main-btn">手机号一键登录</button>
+                                <button class="app-btn-sub" id="app-sub-btn">输入手机号登录/注册</button>
+                            </div>
+                            <div class="app-agreement-area">
+                                <label class="agreement-label">
+                                    <input type="checkbox" id="app-agreement-check" class="agreement-checkbox">
+                                    <span class="agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="app-login-input-view" class="app-page-view">
+                            <!-- 小程序验证码登录页面内容 (维持原样未删减) -->
+                            <div class="app-login-tabs">
+                                <div class="app-login-tab active" onclick="switchMiniLoginTab('code', this)">验证码登录</div>
+                                <div class="app-login-tab" onclick="switchMiniLoginTab('password', this)">密码登录</div>
+                            </div>
+
+                            <!-- 验证码登录表单 -->
+                            <div id="mini-form-group-code" class="login-form-group active">
+                                <div class="app-input-form" style="margin-top: 0;">
+                                    <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div>
+                                    <div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div>
+                                </div>
+                            </div>
+
+                            <!-- 密码登录表单 -->
+                            <div id="mini-form-group-password" class="login-form-group">
+                                <div class="app-input-form" style="margin-top: 0;">
+                                    <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入用户名/手机号"></div>
+                                    <div class="input-wrapper"><input type="password" class="input-field" placeholder="请输入密码"></div>
+                                </div>
+                                <!-- 需求1：小程序首页密码登录页忘记密码与立即注册 -->
+                                <div style="width: 100%; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px; color: #1890ff;">
+                                    <span style="cursor: pointer;" onclick="showToast('忘记密码')">忘记密码</span>
+                                    <span style="cursor: pointer;" onclick="showToast('立即注册')">立即注册</span>
+                                </div>
+                            </div>
+
+                            <div class="app-btns-container" style="margin-top: 40px;">
+                                <button class="app-btn-primary" id="app-input-login-btn">登录</button>
+                                <div class="app-agreement-area" style="margin-top: auto;">
+                                    <label class="agreement-label">
+                                        <!-- 需求4：移除checked属性 -->
+                                        <input type="checkbox" id="app-input-agreement-check" class="agreement-checkbox">
+                                        <!-- 修改1：增加 id 以便动态修改内容，默认加上“新用户将自动注册” -->
+                                        <span class="agreement-text" id="mini-agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>，新用户将自动注册</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 新增视图：小程序首页 (法律咨询) -->
+        <div id="view-app-home" class="view-container active">
+            <div class="app-view-bg">
+                <!-- 给模拟器加相对定位，方便绝对定位子元素 -->
+                <div class="phone-simulator" style="position: relative;">
+                    <!-- 独立的首页 Toast -->
+                    <div id="home-toast" class="app-toast"></div>
+                    
+                    <div class="phone-status-bar">
+                        <span>9:41</span>
+                        <span>5G</span>
+                    </div>
+                    
+                    <!-- 原版 Header -->
+                    <div id="normal-header" class="mini-app-header home-header">
+                        <div class="header-left-area">
+                             <div class="mini-logo">Logo</div>
+                             <span class="header-title-left" style="font-weight: 600; font-size: 17px;">木瓜法宝</span>
+                        </div>
+                        <div class="capsule-btn"></div>
+                    </div>
+                    
+                    <!-- 需求1：分享模式 Header (默认隐藏) -->
+                    <div id="share-header" class="mini-app-header share-header" style="display: none; background: #f5f5f5; z-index: 100;">
+                        <div class="nav-back" onclick="toggleSelectAll()">
+                            <span id="select-all-icon" style="margin-right: 4px;">⭕</span> <span id="select-all-text">全选</span>
+                        </div>
+                        <span class="header-title" id="share-header-title">已选中 0 轮对话</span>
+                        <div class="nav-back" style="justify-content: flex-end; width: 87px;"></div>
+                    </div>
+
+                    <div class="phone-content" style="padding: 0;">
+                        <!-- 咨询页内容 -->
+                        <div class="consult-page-content" id="consult-content-area">
+                            <!-- 聊天记录列表 -->
+                            <div class="chat-list" id="chat-list">
+                                <!-- Logo 作为初始内容 -->
+                                <div class="consult-logo-area" id="consult-logo-area">
+                                    <div class="app-logo-placeholder" style="width: 100px; height: 100px;">LOGO</div>
+                                    <div class="app-name" style="margin-top: 10px;">法律咨询</div>
+                                </div>
+                            </div>
+                            
+                            <!-- 需求1：回到底部悬浮按钮 -->
+                            <div id="scroll-to-bottom-btn" class="scroll-bottom-btn" onclick="scrollToChatBottom()">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                <span>回到底部</span>
+                            </div>
+
+                            <!-- 底部停靠区域 -->
+                            <div class="bottom-dock">
+                                
+                                <!-- 需求2：更多功能与我的权益标签 -->
+                                <!-- 修改：使用 CSS class 控制对齐与间隔 -->
+                                <div class="tags-container">
+                                    <!-- 新增：新建对话胶囊 -->
+                                    <div class="more-func-tag" onclick="showToast('新建对话')" style="margin-bottom: 0;">
+                                        <svg class="more-func-icon" viewBox="0 0 24 24">
+                                            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                                        </svg>
+                                        新建对话
+                                    </div>
+                                    <div class="more-func-tag" style="margin-bottom: 0;">
+                                        <svg class="more-func-icon" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                        历史对话
+                                    </div>
+                                    <div class="more-func-tag" onclick="handleMyBenefitsClick()" style="margin-bottom: 0;">
+                                        <svg class="more-func-icon" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                        我的权益
+                                    </div>
+                                    <div class="more-func-tag" style="margin-bottom: 0;">
+                                        <svg class="more-func-icon" viewBox="0 0 24 24">
+                                            <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                        </svg>
+                                        计费规则
+                                    </div>
+                                    <div class="more-func-tag" onclick="showMoreFunctions()" style="margin-bottom: 0;">
+                                        <svg class="more-func-icon" viewBox="0 0 24 24">
+                                            <path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/>
+                                        </svg>
+                                        更多功能
+                                    </div>
+                                </div>
+                                
+                                <!-- 需求4：未登录黑色引导框 -->
+                                <div id="login-guide-overlay" class="login-guide-overlay" onclick="handleLoginGuideClick()">
+                                    <span class="guide-text">登录后即可使用完整的法律咨询服务</span>
+                                    <button class="guide-login-btn">登录</button>
+                                </div>
+
+                                <!-- 录音提示层 -->
+                                <div id="recording-tip" class="recording-tip-overlay">
+                                    <span id="recording-tip-text" class="recording-tip-text">松开发送，上滑取消</span>
+                                </div>
+
+                                <!-- 底部输入栏 -->
+                                <div class="consult-bottom-bar" id="consult-bottom-bar">
+                                    <div id="consult-input-wrapper" class="consult-input-wrapper">
+                                        <svg id="icon-voice" class="bar-icon left-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                        </svg>
+
+                                        <svg id="icon-keyboard" class="bar-icon left-icon hidden" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"/>
+                                        </svg>
+
+                                        <textarea id="consult-input-field" class="consult-input-field" placeholder="请输入您要咨询的法律问题..." rows="1"></textarea>
+                                        
+                                        <!-- 需求8：按住说话按钮高度与输入框一致 -->
+                                        <div id="btn-voice-hold" class="btn-voice-hold">按住说话</div>
+
+                                        <!-- 需求7：停止按钮样式已在 CSS 修改 -->
+                                        <svg id="icon-stop-text" class="icon-stop" viewBox="0 0 24 24">
+                                            <rect x="6" y="6" width="12" height="12" rx="2" ry="2"/>
+                                        </svg>
+                                        
+                                        <svg id="icon-stop-voice" class="icon-stop" viewBox="0 0 24 24">
+                                            <rect x="6" y="6" width="12" height="12" rx="2" ry="2"/>
+                                        </svg>
+                                        
+                                        <button id="btn-send" class="send-btn">发送</button>
+                                    </div>
+                                </div>
+
+                                <!-- 虚拟键盘模拟 -->
+                                <div id="virtual-keyboard" class="virtual-keyboard">
+                                    <div class="keyboard-collapse-btn" onclick="hideKeyboard()">
+                                        <svg width="24" height="24" viewBox="0 0 24 24" fill="#666">
+                                            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+                                        </svg>
+                                    </div>
+                                    <div class="keyboard-hint">系统键盘模拟区域</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 需求新增：语音识别动态抽屉 -->
+                        <div id="voice-recognize-drawer" class="voice-recognize-drawer">
+                            <div class="voice-drawer-header">
+                                <span class="voice-drawer-collapse" onclick="collapseVoiceDrawer()">收起</span>
+                                <span style="font-size: 16px; font-weight: bold;">编辑文本</span>
+                                <button class="app-btn-primary" style="width: 60px; height: 32px; margin: 0; font-size: 14px;" onclick="sendVoiceEditText()">发送</button>
+                            </div>
+                            <textarea id="voice-recognize-textarea" class="voice-recognize-textarea" placeholder="正在聆听..." readonly></textarea>
+                            
+                            <!-- 需求修改：抽屉底部按钮区 -->
+                            <div id="voice-drawer-bottom-bar" class="voice-drawer-bottom-bar">
+                                <!-- 录音中显示的按住提示按钮 -->
+                                <div id="voice-recording-btn" class="voice-btn-large recording">上滑编辑，松开发送</div>
+                                
+                                <!-- 收起编辑后显示的确认/取消/继续录音按钮组 -->
+                                <div id="voice-preview-btns" class="voice-preview-btns" style="display: none;">
+                                    <button class="voice-btn-cancel" onclick="cancelVoiceRecognize()">取消</button>
+                                    <div id="voice-continue-btn" class="voice-btn-continue">按住说话</div>
+                                    <button class="voice-btn-send" onclick="sendVoiceEditText()">发送</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 需求3：下1/3白色分享面板 -->
+                        <div id="share-panel" class="share-panel">
+                            <div class="share-panel-header">
+                                <span>分享到</span>
+                                <span class="close-share" onclick="exitShareMode()">✕</span>
+                            </div>
+                            <div class="share-options">
+                                <div class="share-opt" onclick="showToast('分享好友列表')">
+                                    <div class="share-opt-icon" style="color:#07c160;">💬</div>
+                                    <div class="share-opt-text">微信好友</div>
+                                </div>
+                                <div class="share-opt" onclick="showToast('分享到朋友圈')">
+                                    <div class="share-opt-icon" style="color:#07c160;">⭕</div>
+                                    <div class="share-opt-text">朋友圈</div>
+                                </div>
+                                <div class="share-opt" onclick="openGeneratePicModal()">
+                                    <div class="share-opt-icon">🖼️</div>
+                                    <div class="share-opt-text">生成分享图</div>
+                                </div>
+                                <div class="share-opt" onclick="showToast('复制链接成功')">
+                                    <div class="share-opt-icon">🔗</div>
+                                    <div class="share-opt-text">复制链接</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="keyboard-overlay" class="auth-drawer-overlay" style="z-index: 40; background: transparent; position: absolute; top:0; bottom:0; left:0; right:0;" onclick="hideKeyboard()"></div>
+
+                        <div id="auth-drawer-overlay" class="auth-drawer-overlay"></div>
+                        <div id="auth-drawer" class="auth-drawer">
+                            <svg class="drawer-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.5,14.5c0.1-0.5,0.1-1,0.3-1.5c1.4,1.1,3.4,1.6,5.4,1.1c0.3,0.3,0.6,0.5,1,0.7 c-1.2,1.3-3.1,1.9-4.9,1.6c-0.6,0.3-1.3,0.5-2,0.6c-0.1,0-0.1-0.1-0.1-0.1c0.1-0.3,0.3-0.6,0.4-0.8 C7.5,15.8,6.8,15.2,6.5,14.5z M13.5,3.3c-4,0-7.2,2.6-7.2,5.9c0,1.9,1.1,3.6,2.8,4.7c-0.1,0.5-0.4,1.4-0.9,1.9 c-0.1,0.1,0,0.2,0.1,0.2c0.6,0,2.1-0.2,3.3-1c0.6,0.2,1.2,0.2,1.9,0.2c4,0,7.2-2.6,7.2-5.9C20.7,5.9,17.5,3.3,13.5,3.3z M10.4,8.1 c-0.5,0-0.9-0.4-0.9-0.9c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C11.3,7.7,10.9,8.1,10.4,8.1z M16.6,8.1c-0.5,0-0.9-0.4-0.9-0.9 c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C17.5,7.7,17.1,8.1,16.6,8.1z M18.1,14.3c-0.1,0.3-0.2,0.8-0.6,1.1 c0.7,0.5,1.6,0.6,2,0.6c0,0,0.1-0.1,0-0.1c-0.3-0.3-0.5-0.9-0.6-1.2c1-0.7,1.6-1.7,1.6-2.8c0-2.2-2.2-3.9-4.8-3.9 c-2.7,0-4.8,1.8-4.8,3.9C10.9,13.7,14.1,15.6,18.1,14.3z M14.3,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6 S14.6,11.2,14.3,11.2z M18.5,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6S18.8,11.2,18.5,11.2z"/></svg>
+                            <div class="drawer-title">申请获取并验证您的手机号</div>
+                            <div class="drawer-desc">登录后即可使用完整的法律咨询服务</div>
+                            
+                            <button class="app-btn-primary" id="drawer-auth-btn">微信一键登录</button>
+                            <button class="app-btn-sub" id="drawer-sub-btn">输入手机号登录/注册</button>
+                            <div class="app-agreement-area" style="margin-top: 20px;">
+                                <label class="agreement-label">
+                                    <input type="checkbox" id="drawer-agreement-check" class="agreement-checkbox">
+                                    <span class="agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 需求6：微信授权专用抽屉 -->
+                        <div id="wechat-phone-drawer" class="wechat-phone-drawer">
+                             <div class="drawer-title">微信授权手机号</div>
+                             <div style="margin-top: 20px;">
+                                 <button class="app-btn-sub" style="width: 150px;" onclick="completeWechatAuth()">授权</button>
+                             </div>
+                        </div>
+
+                        <!-- 修改：APP登录页面微信登录时，若已登录小程序，显示的“允许登录”抽屉 -->
+                        <div id="allow-login-drawer" class="auth-drawer" style="justify-content: center;">
+                            <div style="text-align: center; margin-bottom: 20px; font-size: 16px; font-weight: 500;">APP 申请获取您的登录状态</div>
+                            <button class="app-btn-primary" onclick="handleAllowLoginAction()" style="width: 200px;">允许登录</button>
+                        </div>
+
+                    </div>
+                    
+                    <!-- 移动 Context Menu 到最后 -->
+                    <div id="context-menu" class="context-menu">
+                        <ul id="context-menu-list">
+                            <!-- 动态内容 -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 新增视图：我的权益 -->
+        <div id="view-app-benefits" class="view-container">
+            <div class="app-view-bg">
+                <div class="phone-simulator">
+                    <div class="phone-status-bar">
+                        <span>9:41</span>
+                        <span>5G</span>
+                    </div>
+                    <div class="mini-app-header">
+                        <div class="nav-back" onclick="switchView('app-home')"><span class="back-icon">&lt;</span> 返回</div>
+                        <span class="header-title">我的权益</span>
+                        <div class="capsule-btn"></div>
+                    </div>
+                    <div class="phone-content" style="padding-top: 20px; font-size: 16px; color: #333; display: flex; justify-content: flex-start; width: 100%;">
+                        AAA
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="custom-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="confirm-box">
+            <p class="confirm-text" id="custom-confirm-text">
+                注册/登录即代表您已同意：<br>
+                <a href="#">《服务协议》</a> 和 <a href="#">《隐私政策》</a>
+            </p>
+            <div class="confirm-btns">
+                <button class="confirm-btn btn-cancel" onclick="closeCustomModal()">取消</button>
+                <button class="confirm-btn btn-confirm" onclick="confirmAgreement()">同意并继续</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 需求2：更多功能提示弹窗 -->
+    <div id="more-func-modal" class="modal-overlay" style="display: none;">
+        <div class="confirm-box">
+             <h3 style="margin-bottom: 12px; font-size: 17px; font-weight: 600;">提示</h3>
+            <p class="confirm-text" style="color: #666;">
+                合同审查、案情分析、法律文书等功能暂仅支持在网页端和APP端使用
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="app-btn-sub" style="height: 40px; margin:0;" onclick="copyLink()">复制网页链接</button>
+                <button class="app-btn-sub" style="height: 40px; margin:0;" onclick="copyAppName()">复制APP名称</button>
+                <button class="app-btn-sub" style="height: 40px; margin:0; border:none; color:#999;" onclick="closeMoreFuncModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 需求3补充：生成分享图二次确认弹窗 -->
+    <div id="gen-pic-modal" class="modal-overlay" style="display:none; z-index: 2000;">
+        <div class="confirm-box">
+            <h3 style="margin-bottom: 12px; font-size: 17px; font-weight: 600;">已生成分享图</h3>
+            <div style="width: 100%; height: 160px; background: #f0f2f5; margin: 15px 0; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999;">
+                
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <button class="app-btn-primary" style="margin-bottom: 0;" onclick="showToast('分享好友列表'); closeGenPicModal();">分享给微信好友</button>
+                <button class="app-btn-primary" style="margin-bottom: 0;" onclick="showToast('分享到朋友圈'); closeGenPicModal();">分享到朋友圈</button>
+                <button class="app-btn-sub" style="margin-bottom: 0;" onclick="showToast('保存图片成功'); closeGenPicModal();">保存图片</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'code';
+        let pendingActionSource = null;
+        let isFirstConsultClick = true; // 此变量实际上表示“是否未登录”
+        
+        // ---------------- 本次新增需求追加的全局状态 ----------------
+        let currentRoundId = 0; // 对话轮次ID自增器
+        let isShareMode = false; // 是否处于分享选择模式
+        let selectedRounds = new Set(); // 存储选中的对话轮次ID
+        
+        let isVoiceMode = false;
+        let isRecording = false;
+        let recordingStartTime = 0;
+        let startY = 0;
+        let isCanceling = false;
+        let isVoiceEditMode = false; // 标识是否处于语音全屏编辑模式
+
+        // 需求4：初始化检查引导层
+        function checkLoginOverlay() {
+            const overlay = document.getElementById('login-guide-overlay');
+            if (isFirstConsultClick) {
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+        
+        // 需求5：侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const restoreBtn = document.getElementById('restore-sidebar-btn');
+            
+            sidebar.classList.toggle('collapsed');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                restoreBtn.style.display = 'flex';
+            } else {
+                restoreBtn.style.display = 'none';
+            }
+        }
+
+        function openGeneratePicModal() {
+            document.getElementById('gen-pic-modal').style.display = 'flex';
+        }
+        function closeGenPicModal() {
+            document.getElementById('gen-pic-modal').style.display = 'none';
+        }
+
+        function showMoreFunctions() {
+            document.getElementById('more-func-modal').style.display = 'flex';
+        }
+        function closeMoreFuncModal() {
+            document.getElementById('more-func-modal').style.display = 'none';
+        }
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => showToast('已复制网页链接'));
+            closeMoreFuncModal();
+        }
+        function copyAppName() {
+            navigator.clipboard.writeText('木瓜法宝').then(() => showToast('已复制：木瓜法宝'));
+            closeMoreFuncModal();
+        }
+        
+        // 我的权益点击事件
+        function handleMyBenefitsClick() {
+            if (isFirstConsultClick) {
+                // 未登录状态，调起登录引导
+                handleLoginGuideClick();
+            } else {
+                // 已登录，进入静态页面
+                switchView('app-benefits');
+            }
+        }
+
+        function switchView(viewName) {
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach((item, index) => {
+                if ((viewName === 'web' && index === 0) || 
+                    (viewName === 'app-login' && index === 1) || 
+                    (viewName === 'app-home' && index === 2)) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            let targetId = 'view-' + viewName;
+            document.getElementById(targetId).classList.add('active');
+            
+            const mainContent = document.querySelector('.main-content');
+            if (viewName === 'app' || viewName === 'app-home' || viewName === 'app-login' || viewName === 'app-form-login' || viewName === 'app-benefits') {
+                mainContent.style.backgroundImage = 'none';
+                mainContent.style.backgroundColor = '#ffffff';
+                if (viewName === 'app') backToAppHome();
+                
+                // 切换到 APP 视图时检查引导层
+                if (viewName === 'app-home') {
+                    checkLoginOverlay();
+                }
+            } else {
+                mainContent.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6))';
+            }
+        }
+        
+        const appMainBtn = document.getElementById('app-main-btn');
+        const appSubBtn = document.getElementById('app-sub-btn');
+        const appCheckbox = document.getElementById('app-agreement-check');
+        const appInputLoginBtn = document.getElementById('app-input-login-btn');
+        const appInputCheckbox = document.getElementById('app-input-agreement-check');
+        const customModal = document.getElementById('custom-confirm-modal');
+        
+        const drawerSubBtn = document.getElementById('drawer-sub-btn');
+        const drawerCheckbox = document.getElementById('drawer-agreement-check');
+
+        appMainBtn.addEventListener('click', function() { if (!appCheckbox.checked) { pendingActionSource = 'app-main'; openCustomModal(); } else { showToast('微信授权手机号'); } });
+        
+        // 此处的逻辑为小程序首页的输入登录
+        appSubBtn.addEventListener('click', function() { if (!appCheckbox.checked) { pendingActionSource = 'app-sub'; openCustomModal(); } else { switchToAppInputPage(); } });
+        appInputLoginBtn.addEventListener('click', function() { if (!appInputCheckbox.checked) { pendingActionSource = 'app-input-login'; openCustomModal(); } else { doLoginSuccess(); } });
+        
+        drawerSubBtn.addEventListener('click', function() {
+            if (!drawerCheckbox.checked) {
+                pendingActionSource = 'drawer-sub';
+                openCustomModal();
+            } else {
+                closeAuthDrawer();
+                switchView('app'); 
+                switchToAppInputPage(); 
+            }
+        });
+
+        function openCustomModal() { 
+            const confirmTextEl = document.getElementById('custom-confirm-text');
+            if (confirmTextEl) {
+                confirmTextEl.innerHTML = '注册/登录即代表您已同意：<br><a href="#">《服务协议》</a> 和 <a href="#">《隐私政策》</a>';
+            }
+            customModal.style.display = 'flex'; 
+        }
+        function closeCustomModal() { customModal.style.display = 'none'; pendingActionSource = null; }
+        
+        function confirmAgreement() {
+            const source = pendingActionSource;
+            if (source === 'app-main' || source === 'app-sub') appCheckbox.checked = true;
+            if (source === 'app-input-login') appInputCheckbox.checked = true;
+            if (source === 'drawer-main' || source === 'drawer-sub') drawerCheckbox.checked = true;
+
+            closeCustomModal();
+            setTimeout(() => {
+                if (source === 'app-sub') switchToAppInputPage();
+                else if (source === 'app-main') showToast('微信授权手机号');
+                else if (source === 'app-input-login') doLoginSuccess();
+                else if (source === 'drawer-main') {
+                    showWechatPhoneDrawer();
+                }
+                else if (source === 'drawer-sub') {
+                    closeAuthDrawer();
+                    switchView('app');
+                    switchToAppInputPage();
+                }
+                else doLoginSuccess();
+            }, 100);
+        }
+        function switchToAppInputPage() { document.getElementById('app-home-view').style.display = 'none'; document.getElementById('app-login-input-view').style.display = 'flex'; }
+        
+        function handleAppBack() { 
+            // 切换回小程序首页
+            switchView('app-home');
+            
+            // 显示底部授权弹窗
+            const drawer = document.getElementById('auth-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            drawer.classList.add('active');
+            overlay.classList.add('active');
+            
+            // 重置登录页状态 (为了下次进入时状态正确)
+            backToAppHome(); 
+        }
+
+        // 修改：封装跳转逻辑，根据登录状态显示不同弹窗 (保留小程序逻辑)
+        function navigateToAppHomeAuth() {
+            switchView('app-home');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            
+            if (isFirstConsultClick) { 
+                // 小程序未登录，显示第一个弹窗（申请获取并验证您的手机号）
+                const drawer = document.getElementById('auth-drawer');
+                drawer.classList.add('active');
+                overlay.classList.add('active');
+            } else {
+                // 小程序已登录，显示允许登录抽屉
+                const allowDrawer = document.getElementById('allow-login-drawer');
+                allowDrawer.classList.add('active');
+                overlay.classList.add('active');
+            }
+        }
+
+        // 修改：处理允许登录逻辑
+        function handleAllowLoginAction() {
+            const allowDrawer = document.getElementById('allow-login-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            allowDrawer.classList.remove('active');
+            overlay.classList.remove('active');
+            showToast('登录成功');
+        }
+        
+        // 切换小程序登录的分段控制器
+        function switchMiniLoginTab(mode, el) {
+            const container = document.getElementById('app-login-input-view');
+            container.querySelectorAll('.app-login-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            
+            container.querySelectorAll('.login-form-group').forEach(g => g.classList.remove('active'));
+            document.getElementById('mini-form-group-' + mode).classList.add('active');
+
+            // 修改1：小程序登录页面验证码模式显示“新用户将自动注册”
+            const agreementText = document.getElementById('mini-agreement-text');
+            if (mode === 'code') {
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>，新用户将自动注册';
+            } else {
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>';
+            }
+        }
+
+        function backToAppHome() { document.getElementById('app-home-view').style.display = 'flex'; document.getElementById('app-login-input-view').style.display = 'none'; document.getElementById('app-agreement-check').checked = false; }
+        
+        function doLoginSuccess() {
+            const isAppView = document.getElementById('view-app').classList.contains('active');
+            const isConsultView = document.getElementById('view-app-home').classList.contains('active');
+            
+            // 状态更新
+            isFirstConsultClick = false;
+            checkLoginOverlay();
+
+            if (isAppView) {
+                showToast('登录成功');
+            }
+            else if (isConsultView) { 
+                closeAuthDrawer(); 
+                document.getElementById('wechat-phone-drawer').classList.remove('active'); // 确保关闭手机授权抽屉
+                const toast = document.createElement('div'); toast.className = 'app-toast'; toast.innerText = '登录成功'; toast.style.display = 'block'; document.querySelector('#view-app-home .phone-simulator').appendChild(toast); setTimeout(() => toast.remove(), 3000); 
+            }
+            else alert('登录成功');
+        }
+        
+        function showToast(msg) { 
+            let toast = document.getElementById('app-toast');
+            const isConsultView = document.getElementById('view-app-home').classList.contains('active');
+            
+            if (isConsultView) {
+                toast = document.getElementById('home-toast');
+            }
+            
+            if (toast) {
+                toast.innerText = msg; 
+                toast.style.display = 'block'; 
+                setTimeout(() => { toast.style.display = 'none'; }, 3000); 
+            }
+        }
+
+        const consultInputTrigger = document.getElementById('consult-input-field'); 
+        const authDrawer = document.getElementById('auth-drawer');
+        const authDrawerOverlay = document.getElementById('auth-drawer-overlay');
+        const drawerAuthBtn = document.getElementById('drawer-auth-btn');
+        const virtualKeyboard = document.getElementById('virtual-keyboard');
+        const consultBottomBar = document.getElementById('consult-bottom-bar');
+        const keyboardOverlay = document.getElementById('keyboard-overlay');
+        const consultPageContent = document.getElementById('consult-content-area');
+        const iconVoice = document.getElementById('icon-voice');
+        const iconKeyboard = document.getElementById('icon-keyboard');
+        const btnSend = document.getElementById('btn-send');
+        const inputWrapper = document.getElementById('consult-input-wrapper');
+        const btnVoiceHold = document.getElementById('btn-voice-hold');
+        const recordingTip = document.getElementById('recording-tip');
+        const recordingTipText = document.getElementById('recording-tip-text');
+        const chatList = document.getElementById('chat-list');
+        const contextMenu = document.getElementById('context-menu');
+        const contextMenuList = document.getElementById('context-menu-list');
+        const iconStopText = document.getElementById('icon-stop-text');
+        const iconStopVoice = document.getElementById('icon-stop-voice');
+
+        let editingMessageNode = null;
+        let contextMenuTarget = null;
+        let replyTimer = null; 
+        let isReplying = false; 
+        let currentReplyNode = null; 
+
+        document.addEventListener('click', function(e) {
+            contextMenu.style.display = 'none';
+        });
+        
+        // 需求4：未登录时点击引导框的处理
+        function handleLoginGuideClick() {
+            if (isFirstConsultClick) {
+                authDrawer.classList.add('active');
+                authDrawerOverlay.classList.add('active');
+            }
+        }
+
+        consultInputTrigger.addEventListener('click', function(e) {
+            if (isFirstConsultClick) {
+                authDrawer.classList.add('active');
+                authDrawerOverlay.classList.add('active');
+                consultInputTrigger.blur();
+            } else {
+                showKeyboard();
+            }
+        });
+
+        consultInputTrigger.addEventListener('input', function() {
+            updateInputHeight(this);
+            toggleIcons(this.value);
+        });
+
+        btnSend.addEventListener('click', function() {
+            const text = consultInputTrigger.value.trim();
+            if (text) {
+                if (editingMessageNode) {
+                    editingMessageNode.innerText = text;
+                    editingMessageNode.classList.remove('voice'); 
+                    editingMessageNode.classList.add('text-user');
+                    updateLatestMessageStyle(editingMessageNode);
+                    
+                    let nextSiblingWrapper = editingMessageNode.parentElement.nextElementSibling;
+                    if (nextSiblingWrapper && nextSiblingWrapper.classList.contains('ai-row')) {
+                        nextSiblingWrapper.remove();
+                    }
+                    
+                    editingMessageNode = null;
+                    setTimeout(simulateReply, 500);
+                } else {
+                    const msgNode = sendMessage(text, 'text-user');
+                    updateLatestMessageStyle(msgNode);
+                    setTimeout(simulateReply, 500);
+                }
+
+                consultInputTrigger.value = '';
+                updateInputHeight(consultInputTrigger);
+                toggleIcons('');
+                
+                if (!isVoiceMode) {
+                    iconVoice.classList.remove('hidden');
+                }
+                
+                const logoArea = document.getElementById('consult-logo-area');
+                if(logoArea) logoArea.style.display = 'none';
+                
+                hideKeyboard();
+            }
+        });
+
+        iconVoice.addEventListener('click', function() { toggleVoiceMode(true); });
+        iconKeyboard.addEventListener('click', function() { toggleVoiceMode(false); if (!isFirstConsultClick) setTimeout(showKeyboard, 100); });
+
+        function toggleVoiceMode(enableVoice) {
+            isVoiceMode = enableVoice;
+            if (enableVoice) {
+                iconVoice.classList.add('hidden');
+                iconKeyboard.classList.remove('hidden');
+                consultInputTrigger.style.display = 'none';
+                btnSend.classList.remove('active'); 
+                btnVoiceHold.style.display = 'flex';
+                
+                if (isReplying) {
+                    iconStopVoice.classList.add('visible');
+                    iconStopText.classList.remove('visible'); 
+                }
+                
+                hideKeyboard();
+            } else {
+                iconVoice.classList.remove('hidden');
+                iconKeyboard.classList.add('hidden');
+                consultInputTrigger.style.display = 'block';
+                toggleIcons(consultInputTrigger.value);
+                btnVoiceHold.style.display = 'none';
+                
+                if (isReplying) {
+                    iconStopText.classList.add('visible');
+                    iconStopVoice.classList.remove('visible');
+                    btnSend.classList.remove('active');
+                }
+            }
+        }
+
+        // ======================= 语音动态识别打字机与上滑编辑交互核心逻辑 =======================
+        let typewriterTimer = null;
+        let typewriterIndex = 0;
+        let mockVoiceText = "这是一段模拟的语音识别内容。我们将演示当文字越来越多时，它是如何自动换行的。随着文本内容的增加，系统会自动识别文本所占用的高度，并逐渐增加底部抽屉的高度。抽屉默认高度为40%，最高可以扩展到60%。如果继续说话，多出的内容会在这个区域内滚动显示，方便用户查看识别的完整过程，而不会破坏整体的界面布局。这就是动态自适应抽屉和打字机效果的完整展示。";
+        
+        btnVoiceHold.addEventListener('mousedown', startRecording);
+        btnVoiceHold.addEventListener('touchstart', startRecording);
+        document.addEventListener('mousemove', moveRecording);
+        document.addEventListener('touchmove', moveRecording);
+        document.addEventListener('mouseup', endRecording);
+        document.addEventListener('touchend', endRecording);
+        
+        // 绑定抽屉内新增的中心“按住说话”按钮的事件
+        const voiceContinueBtn = document.getElementById('voice-continue-btn');
+        voiceContinueBtn.addEventListener('mousedown', startContinueRecording);
+        voiceContinueBtn.addEventListener('touchstart', startContinueRecording);
+
+        function startTypewriter(append = false) {
+            typewriterIndex = 0;
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            if (!append) {
+                voiceTextarea.value = '';
+            } else {
+                // 如果是基于原来文字继续录音，可以在这里补充间隔符等处理
+                if (voiceTextarea.value.length > 0) {
+                    voiceTextarea.value += ' ';
+                }
+            }
+            
+            function typeNextChar() {
+                if (typewriterIndex < mockVoiceText.length) {
+                    voiceTextarea.value += mockVoiceText.charAt(typewriterIndex);
+                    typewriterIndex++;
+                    
+                    const drawer = document.getElementById('voice-recognize-drawer');
+                    if (!drawer.classList.contains('fullscreen')) {
+                        const containerHeight = document.querySelector('.phone-simulator').clientHeight;
+                        const scrollHeight = voiceTextarea.scrollHeight + 40; 
+                        
+                        // 基于内容增加抽屉高度
+                        let targetHeightPercent = (scrollHeight / containerHeight) * 100;
+                        if (targetHeightPercent < 40) targetHeightPercent = 40;
+                        if (targetHeightPercent > 60) targetHeightPercent = 60;
+                        
+                        drawer.style.height = targetHeightPercent + '%';
+                        voiceTextarea.scrollTop = voiceTextarea.scrollHeight;
+                    }
+
+                    typewriterTimer = setTimeout(typeNextChar, 80); 
+                }
+            }
+            typewriterTimer = setTimeout(typeNextChar, 100); 
+        }
+
+        function stopTypewriter() {
+            if (typewriterTimer) {
+                clearTimeout(typewriterTimer);
+                typewriterTimer = null;
+            }
+        }
+
+        function startRecording(e) {
+            if (!isVoiceMode) return;
+            e.preventDefault();
+            isRecording = true;
+            isCanceling = false;
+            isVoiceEditMode = false;
+            recordingStartTime = Date.now();
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            consultBottomBar.classList.add('recording-active');
+            btnVoiceHold.classList.add('recording');
+            btnVoiceHold.innerText = '松开发送'; 
+            
+            // 隐藏原有提示层，将提示移至抽屉内部的按钮上
+            recordingTip.style.display = 'none';
+
+            // 展示动态打字机抽屉
+            const voiceDrawer = document.getElementById('voice-recognize-drawer');
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            voiceDrawer.classList.remove('fullscreen');
+            voiceDrawer.style.height = '40%';
+            voiceDrawer.classList.add('active');
+            voiceTextarea.readOnly = true;
+            
+            // 初始化底部按钮为“录音提示”状态
+            document.getElementById('voice-recording-btn').style.display = 'flex';
+            document.getElementById('voice-preview-btns').style.display = 'none';
+
+            startTypewriter(false);
+        }
+
+        // 需求修改：在收起的抽屉中继续按住中间按钮
+        function startContinueRecording(e) {
+            if (!isVoiceMode) return;
+            e.preventDefault();
+            isRecording = true;
+            isCanceling = false;
+            isVoiceEditMode = false;
+            recordingStartTime = Date.now();
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            // 切换回“大按钮”的录音视图布局
+            document.getElementById('voice-recording-btn').style.display = 'flex';
+            document.getElementById('voice-preview-btns').style.display = 'none';
+
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            voiceTextarea.readOnly = true;
+
+            // 激活打字机，执行追加动作
+            startTypewriter(true);
+        }
+
+        function moveRecording(e) {
+            if (!isRecording) return;
+            if (isVoiceEditMode) return; // 如果已经进入了编辑模式则不再触发
+            
+            const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            const diff = startY - currentY;
+            if (diff > 50) { 
+                // 上滑超过距离直接进入全屏编辑模式
+                enterVoiceEditMode();
+            } 
+        }
+
+        function enterVoiceEditMode() {
+            isVoiceEditMode = true;
+            stopTypewriter(); // 停止打字机
+            
+            const voiceDrawer = document.getElementById('voice-recognize-drawer');
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            
+            // 切换为全屏编辑
+            voiceDrawer.classList.add('fullscreen');
+            voiceTextarea.readOnly = false;
+            
+            // 切换按钮状态备用：收起时显示“取消”、录音、“发送”的三重状态栏
+            document.getElementById('voice-recording-btn').style.display = 'none';
+            document.getElementById('voice-preview-btns').style.display = 'flex';
+            
+            // 延时执行以确保在DOM渲染并全屏展开后聚焦
+            setTimeout(() => {
+                voiceTextarea.focus();
+                const len = voiceTextarea.value.length;
+                voiceTextarea.setSelectionRange(len, len);
+            }, 50);
+        }
+
+        // 需求修改：处理从全屏退回到抽屉预览（收起）
+        function collapseVoiceDrawer() {
+            const voiceDrawer = document.getElementById('voice-recognize-drawer');
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            
+            voiceDrawer.classList.remove('fullscreen');
+            voiceTextarea.readOnly = true; // 恢复只读防止误触
+            // 此时高度维持在内容百分比，三区按钮块已在 enterVoiceEditMode 中设为显示
+        }
+
+        // 需求修改：彻底关闭抽屉的逻辑
+        function closeVoiceDrawer() {
+            const voiceDrawer = document.getElementById('voice-recognize-drawer');
+            voiceDrawer.classList.remove('fullscreen');
+            voiceDrawer.classList.remove('active');
+            
+            // 重置底边栏按钮交互状态
+            isRecording = false;
+            isVoiceEditMode = false;
+            consultBottomBar.classList.remove('recording-active');
+            btnVoiceHold.classList.remove('recording');
+            btnVoiceHold.innerText = '按住说话';
+            recordingTip.style.display = 'none';
+        }
+
+        function cancelVoiceRecognize() {
+            closeVoiceDrawer();
+        }
+
+        function sendVoiceEditText() {
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            const recognizedText = voiceTextarea.value.trim();
+            
+            closeVoiceDrawer(); // 关闭界面
+            
+            if (recognizedText) {
+                const msgNode = sendMessage(recognizedText, 'voice');
+                updateLatestMessageStyle(msgNode);
+                const logoArea = document.getElementById('consult-logo-area');
+                if(logoArea) logoArea.style.display = 'none';
+                setTimeout(simulateReply, 500);
+            }
+        }
+
+        function endRecording(e) {
+            if (!isRecording) return;
+
+            // 如果已经进入了全屏编辑模式，结束触摸时不必处理发送，由全屏界面内的"发送"按钮处理即可
+            if (isVoiceEditMode) {
+                isRecording = false;
+                consultBottomBar.classList.remove('recording-active');
+                btnVoiceHold.classList.remove('recording');
+                btnVoiceHold.innerText = '按住说话';
+                return;
+            }
+
+            isRecording = false;
+            stopTypewriter();
+            const duration = Date.now() - recordingStartTime;
+            
+            const voiceTextarea = document.getElementById('voice-recognize-textarea');
+            const recognizedText = voiceTextarea.value.trim();
+
+            if (duration < 500) {
+                showToast('说话时间太短');
+                closeVoiceDrawer();
+            } else if (recognizedText) {
+                // 如果录音停止且非极短录音，直接调用发送逻辑（模拟松开发送）
+                sendVoiceEditText();
+            } else {
+                closeVoiceDrawer();
+            }
+        }
+        // ======================= 动态打字机与上滑编辑交互核心逻辑完成 =======================
+
+        // 绑定打断回复事件
+        function handleStopClick() {
+            if (currentReplyNode) {
+                // 打上已被打断的标记，用于判断是否显示分享按钮
+                currentReplyNode.dataset.interrupted = 'true';
+            }
+            stopReply();
+        }
+        iconStopText.addEventListener('click', handleStopClick);
+        iconStopVoice.addEventListener('click', handleStopClick);
+
+        function updateLatestMessageStyle(newMsgNode) {
+            const allUserMsgs = document.querySelectorAll('.chat-message.user-msg');
+            allUserMsgs.forEach(msg => {
+                msg.classList.remove('latest');
+                msg.onclick = function(e) {
+                    if (isShareMode) {
+                        e.stopPropagation();
+                        toggleRoundSelection(msg.parentElement.dataset.roundId);
+                    }
+                }; 
+            });
+            
+            if (newMsgNode) {
+                newMsgNode.classList.add('latest');
+                newMsgNode.onclick = function(e) {
+                    if (isShareMode) {
+                        e.stopPropagation();
+                        toggleRoundSelection(newMsgNode.parentElement.dataset.roundId);
+                    } else {
+                        fillInputToEdit(newMsgNode);
+                    }
+                };
+            }
+        }
+
+        function fillInputToEdit(msgNode) {
+            editingMessageNode = msgNode;
+            const content = msgNode.innerText;
+            consultInputTrigger.value = content;
+            toggleIcons(content);
+            updateInputHeight(consultInputTrigger);
+            if (isVoiceMode) toggleVoiceMode(false);
+            iconVoice.classList.add('hidden'); 
+            showKeyboard();
+        }
+
+        // 修改：重构sendMessage，分配对话轮次包裹结构
+        function sendMessage(content, type) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'msg-wrapper';
+            
+            // 根据发送方分配轮次ID
+            if (type === 'text-user' || type === 'voice') {
+                currentRoundId++;
+                wrapper.classList.add('user-row');
+            } else if (type === 'ai') {
+                wrapper.classList.add('ai-row');
+            }
+            wrapper.dataset.roundId = currentRoundId;
+
+            // 注入分享使用的复选框
+            const checkbox = document.createElement('div');
+            checkbox.className = 'share-checkbox';
+            checkbox.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="#fff" style="display:none; margin: 2px;"><path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>`;
+            checkbox.onclick = function(e) {
+                e.stopPropagation();
+                toggleRoundSelection(wrapper.dataset.roundId);
+            };
+            wrapper.appendChild(checkbox);
+
+            const msgDiv = document.createElement('div');
+            let className = 'chat-message';
+            if (type === 'text-user') className += ' user-msg';
+            if (type === 'voice') className += ' user-msg voice';
+            if (type === 'ai') className += ' ai-msg';
+            
+            msgDiv.className = className;
+            msgDiv.innerText = content;
+            
+            // 绑定右键菜单事件
+            msgDiv.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showContextMenu(e, msgDiv, type);
+            });
+
+            // 在分享模式下点击任意消息内容即可切换该轮状态
+            msgDiv.onclick = function(e) {
+                if (isShareMode) {
+                    e.stopPropagation();
+                    toggleRoundSelection(wrapper.dataset.roundId);
+                }
+            };
+
+            wrapper.appendChild(msgDiv);
+            chatList.appendChild(wrapper);
+            chatList.scrollTop = chatList.scrollHeight;
+            return msgDiv; 
+        }
+
+        function showContextMenu(e, targetNode, type) {
+            contextMenuTarget = targetNode;
+            contextMenuList.innerHTML = ''; 
+
+            const isUserMsg = type === 'text-user' || type === 'voice';
+            const actions = isUserMsg 
+                ? [
+                    { text: '复制', action: 'copy' },
+                    { text: '编辑', action: 'edit' },
+                    { text: '删除', action: 'delete' }
+                  ]
+                : [
+                    { text: '复制', action: 'copy' },
+                    { text: '选择文字', action: 'select' },
+                    { text: '分享', action: 'share' },
+                    { text: '删除', action: 'delete' }
+                  ];
+
+            actions.forEach(item => {
+                const li = document.createElement('li');
+                li.innerText = item.text;
+                li.onclick = () => handleMenuAction(item.action);
+                contextMenuList.appendChild(li);
+            });
+
+            const rect = targetNode.getBoundingClientRect();
+            let top = rect.bottom + 5;
+            let left = rect.left + (rect.width / 2);
+            
+            const menuHeight = 50; 
+            if (top + menuHeight > window.innerHeight) {
+                top = rect.top - menuHeight - 5;
+            }
+            
+            contextMenu.style.position = 'fixed';
+            contextMenu.style.top = top + 'px';
+            contextMenu.style.left = left + 'px';
+            contextMenu.style.transform = 'translateX(-50%)'; 
+            contextMenu.style.display = 'block';
+        }
+
+        function handleMenuAction(action) {
+            const content = contextMenuTarget.innerText;
+            if (action === 'copy') {
+                navigator.clipboard.writeText(content).then(() => {
+                    showToast('复制成功');
+                }).catch(() => { showToast('复制成功'); });
+            } else if (action === 'select') {
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(contextMenuTarget);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else if (action === 'edit') {
+                fillInputToEdit(contextMenuTarget);
+            } else if (action === 'delete') {
+                // 删除整个对话块 wrapper
+                contextMenuTarget.parentElement.style.display = 'none';
+            } else if (action === 'share') {
+                // 右键菜单进入分享
+                enterShareMode(contextMenuTarget.parentElement.dataset.roundId);
+            }
+            contextMenu.style.display = 'none';
+        }
+
+        // 修改：处理所有AI消息的气泡下方按钮，增加中断逻辑判断
+        function updateAllAiActions() {
+            const aiWrappers = document.querySelectorAll('.ai-row');
+            
+            aiWrappers.forEach((wrapper, index) => {
+                const aiMsgNode = wrapper.querySelector('.ai-msg');
+                const roundId = wrapper.dataset.roundId;
+                const isLast = index === aiWrappers.length - 1;
+                const isInterrupted = aiMsgNode.dataset.interrupted === 'true'; // 检查是否为被打断的消息
+                
+                // 移除旧的操作栏
+                const oldActions = aiMsgNode.querySelectorAll('.msg-actions');
+                oldActions.forEach(el => el.remove());
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'msg-actions';
+                
+                const itemCopy = document.createElement('div');
+                itemCopy.className = 'msg-action-item';
+                itemCopy.innerHTML = '<span class="msg-action-icon">📄</span>复制';
+                itemCopy.onclick = function() {
+                    const text = aiMsgNode.childNodes[0].nodeValue; 
+                    navigator.clipboard.writeText(text || aiMsgNode.innerText.replace('复制分享重新回答','')).then(() => showToast('复制成功'));
+                };
+                actionsDiv.appendChild(itemCopy);
+
+                // 如果是被打断的回复内容，不显示分享操作
+                if (!isInterrupted) {
+                    const itemShare = document.createElement('div');
+                    itemShare.className = 'msg-action-item';
+                    itemShare.innerHTML = '<span class="msg-action-icon">🔗</span>分享';
+                    itemShare.onclick = function() { 
+                        enterShareMode(roundId);
+                    };
+                    actionsDiv.appendChild(itemShare);
+                }
+
+                // 仅最后一条AI消息追加"重新回答"
+                if (isLast) {
+                    const itemRegen = document.createElement('div');
+                    itemRegen.className = 'msg-action-item';
+                    itemRegen.innerHTML = '<span class="msg-action-icon">🔄</span>重新回答';
+                    itemRegen.onclick = function() { 
+                        wrapper.remove(); 
+                        simulateReply(); 
+                    };
+                    actionsDiv.appendChild(itemRegen);
+                }
+                
+                // 所有消息不再显示"更多"
+                aiMsgNode.appendChild(actionsDiv);
+            });
+            chatList.scrollTop = chatList.scrollHeight;
+        }
+
+        function stopReply() {
+            if (replyTimer) {
+                clearInterval(replyTimer);
+                replyTimer = null;
+            }
+            isReplying = false;
+            
+            iconStopText.classList.remove('visible');
+            iconStopVoice.classList.remove('visible');
+            
+            if (!isVoiceMode) {
+                toggleIcons(consultInputTrigger.value); 
+            }
+            
+            if (currentReplyNode) {
+                updateAllAiActions();
+            }
+        }
+
+        function simulateReply() {
+            if (isReplying) stopReply();
+            isReplying = true;
+
+            const replyText = `嗯，用户现在问的是老板负什么责任，看来ta对之前分析的投毒案中老板的法律责任感兴趣。之前已经详细解释了投毒者的刑事责任，现在需要转向火锅店经营者的责任层面。
+
+用户可能是个法律学习者或普通市民，想了解这类社会事件中的责任分配。ta的提问很精准，说明对法律逻辑有一定理解，但可能不清楚餐饮行业的具体法律义务。深层需求或许是想知道“如果我是消费者如何维权”或“开店要注意什么”。
+
+从专业角度，老板的责任需要分三个层面：刑事、民事、行政。刑事上重点分析过失犯罪，因为老板不存在故意；民事要突出消费者维权的双轨制（企业赔偿+个人追偿）；行政责任那块要强调食品安全法的具体条文。
+
+特别要注意因果关系的论证——虽然老鼠药是他人投放，但老板的违规操作直接导致结果发生。这点在辩护律师角度常被质疑，所以需要引用介入因素理论（老板行为升高了风险且具有可归责性）。
+
+最后补充维权建议是实用的，因为普通用户更关心“我能怎么做”。行政举报那块很多人会忽略，其实这是最快捷的维权方式。`;
+
+            if (isVoiceMode) {
+                iconStopVoice.classList.add('visible');
+            } else {
+                btnSend.classList.remove('active');
+                iconStopText.classList.add('visible');
+            }
+
+            currentReplyNode = sendMessage('', 'ai');
+            
+            let i = 0;
+            const totalTime = 8000; 
+            const interval = totalTime / replyText.length;
+            
+            replyTimer = setInterval(() => {
+                currentReplyNode.innerText += replyText.charAt(i);
+                chatList.scrollTop = chatList.scrollHeight;
+                i++;
+                if (i >= replyText.length) {
+                    stopReply(); 
+                }
+            }, interval);
+        }
+
+        function showKeyboard() {
+            virtualKeyboard.classList.add('active');
+            keyboardOverlay.classList.add('active');
+            chatList.style.paddingBottom = '350px'; 
+            consultInputTrigger.focus();
+            setTimeout(() => { chatList.scrollTop = chatList.scrollHeight; }, 300);
+        }
+
+        function hideKeyboard() {
+            virtualKeyboard.classList.remove('active');
+            keyboardOverlay.classList.remove('active');
+            chatList.style.paddingBottom = '110px'; // 恢复为新的 padding
+        }
+
+        function updateInputHeight(el) {
+            el.style.height = 'auto';
+            el.style.height = '23px'; 
+            let scHeight = el.scrollHeight;
+            if (scHeight <= 25) el.style.height = '23px';
+            else if (scHeight <= 48) el.style.height = '46px';
+            else { el.style.height = '69px'; el.scrollTop = el.scrollHeight; }
+        }
+
+        function toggleIcons(value) {
+            if (isReplying) return; 
+
+            if (value.length > 0) {
+                btnSend.classList.add('active'); 
+                iconVoice.classList.add('hidden');
+            } else {
+                if (!isVoiceMode) iconVoice.classList.remove('hidden');
+                btnSend.classList.remove('active');
+            }
+        }
+
+        // 修改：Drawer 按钮点击逻辑，改为显示授权 Drawer
+        drawerAuthBtn.addEventListener('click', function() { 
+            if (!drawerCheckbox.checked) {
+                pendingActionSource = 'drawer-main';
+                openCustomModal();
+            } else {
+                showWechatPhoneDrawer();
+            }
+        });
+        
+        // 需求6：显示微信授权专用抽屉
+        function showWechatPhoneDrawer() {
+            closeAuthDrawer();
+            const phoneDrawer = document.getElementById('wechat-phone-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            phoneDrawer.classList.add('active');
+            overlay.classList.add('active');
+            
+            // 绑定覆盖层点击关闭事件
+            overlay.onclick = function() {
+                completeWechatAuth(); // 点击空白处也算完成授权？需求说点击空白切换为已登录
+            };
+        }
+        
+        // 需求6：完成授权逻辑
+        function completeWechatAuth() {
+            const phoneDrawer = document.getElementById('wechat-phone-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            phoneDrawer.classList.remove('active');
+            overlay.classList.remove('active');
+            overlay.onclick = closeAuthDrawer; // 恢复原来的点击事件
+            doLoginSuccess();
+        }
+
+        function closeAuthDrawer() { 
+            const authDrawer = document.getElementById('auth-drawer');
+            const allowDrawer = document.getElementById('allow-login-drawer');
+            const bindDrawer = document.getElementById('bind-phone-drawer');
+            const authDrawerOverlay = document.getElementById('auth-drawer-overlay');
+            
+            if(authDrawer) authDrawer.classList.remove('active'); 
+            if(allowDrawer) allowDrawer.classList.remove('active');
+            if(bindDrawer) bindDrawer.classList.remove('active');
+            
+            if(authDrawerOverlay) authDrawerOverlay.classList.remove('active'); 
+        }
+        authDrawerOverlay.addEventListener('click', closeAuthDrawer);
+        
+        // ---------------- 分享选择模式的核心处理逻辑 ----------------
+        
+        function enterShareMode(roundId) {
+            isShareMode = true;
+            selectedRounds.clear();
+            if (roundId) selectedRounds.add(roundId.toString());
+            
+            // Header 切换
+            document.getElementById('normal-header').style.display = 'none';
+            document.getElementById('share-header').style.display = 'flex';
+            
+            // 隐藏输入底栏，展示分享面板
+            document.getElementById('consult-bottom-bar').style.display = 'none';
+            document.querySelector('.bottom-dock .tags-container').style.display = 'none'; // 隐藏更多功能标签
+            document.getElementById('share-panel').classList.add('active');
+            
+            // 列表应用分享模式样式（左侧挤出 checkbox 空间，避开下 1/3 面板遮挡）
+            chatList.classList.add('share-mode');
+            chatList.style.paddingBottom = '350px'; 
+            
+            updateShareSelections();
+        }
+        
+        function exitShareMode() {
+            isShareMode = false;
+            selectedRounds.clear();
+            
+            // Header 恢复
+            document.getElementById('normal-header').style.display = 'flex';
+            document.getElementById('share-header').style.display = 'none';
+            
+            // 恢复底栏
+            document.getElementById('consult-bottom-bar').style.display = 'flex';
+            document.querySelector('.bottom-dock .tags-container').style.display = 'flex';
+            document.getElementById('share-panel').classList.remove('active');
+            
+            // 取消列表分享模式样式
+            chatList.classList.remove('share-mode');
+            chatList.style.paddingBottom = '110px';
+            
+            updateShareSelections();
+        }
+        
+        function toggleRoundSelection(roundId) {
+            roundId = roundId.toString();
+            if (selectedRounds.has(roundId)) {
+                selectedRounds.delete(roundId);
+            } else {
+                selectedRounds.add(roundId);
+            }
+            updateShareSelections();
+        }
+        
+        function toggleSelectAll() {
+            const allWrappers = document.querySelectorAll('.msg-wrapper');
+            const allRounds = new Set();
+            allWrappers.forEach(w => {
+                if (w.dataset.roundId && w.dataset.roundId !== "0") {
+                    allRounds.add(w.dataset.roundId);
+                }
+            });
+            
+            if (selectedRounds.size === allRounds.size && allRounds.size > 0) {
+                selectedRounds.clear(); // 已全选则取消
+            } else {
+                selectedRounds = new Set(allRounds); // 未全选则全选
+            }
+            updateShareSelections();
+        }
+        
+        function updateShareSelections() {
+            // 更新标题文字
+            document.getElementById('share-header-title').innerText = `已选中 ${selectedRounds.size} 轮对话`;
+            
+            const allWrappers = document.querySelectorAll('.msg-wrapper');
+            const allRounds = new Set();
+            
+            // 更新每个复选框的视觉状态
+            allWrappers.forEach(w => {
+                const rid = w.dataset.roundId;
+                if (rid && rid !== "0") allRounds.add(rid);
+                const cb = w.querySelector('.share-checkbox');
+                if (cb) {
+                    if (selectedRounds.has(rid)) {
+                        cb.classList.add('checked');
+                        cb.querySelector('svg').style.display = 'block';
+                    } else {
+                        cb.classList.remove('checked');
+                        cb.querySelector('svg').style.display = 'none';
+                    }
+                }
+            });
+            
+            // 更新“全选”按钮文字与图标
+            const selectAllText = document.getElementById('select-all-text');
+            const selectAllIcon = document.getElementById('select-all-icon');
+            if (selectedRounds.size === allRounds.size && allRounds.size > 0) {
+                selectAllText.innerText = '取消全选';
+                selectAllIcon.innerHTML = '☑️';
+            } else {
+                selectAllText.innerText = '全选';
+                selectAllIcon.innerHTML = '⭕';
+            }
+        }
+        
+        // ---------------- 滚动条悬浮按钮控制 ----------------
+
+        chatList.addEventListener('scroll', function() {
+            const containerHeight = chatList.clientHeight;
+            const scrollDistanceFromBottom = chatList.scrollHeight - chatList.scrollTop - containerHeight;
+            const scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
+            // 距离底部超过50vh (按屏幕高一半计算，适配模拟器)
+            if (scrollDistanceFromBottom > window.innerHeight * 0.5) {
+                scrollToBottomBtn.style.display = 'flex';
+            } else {
+                scrollToBottomBtn.style.display = 'none';
+            }
+        });
+
+        // 需求1：点击回到底部
+        function scrollToChatBottom() {
+            chatList.scrollTo({ top: chatList.scrollHeight, behavior: 'smooth' });
+        }
+
+        // 初始化运行检查
+        window.addEventListener('load', () => {
+             // 默认显示小程序首页，确保移除了web和app后能平滑运行
+             switchView('app-home');
+        });
+
+    </script>
+</body>
+</html>

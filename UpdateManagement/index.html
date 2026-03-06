@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APP发布管理</title>
+	<link rel="icon" href="../ico.svg" type="image/svg+xml">
+	<link rel="icon" href="../ico.svg" type="image/svg+xml">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1677ff',
+                        success: '#52c41a',
+                        warning: '#faad14',
+                        danger: '#ff4d4f',
+                        surface: '#f5f5f5',
+                        harmony: '#0a59f7'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* 避免选中闪烁 */
+        .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
+        
+        /* Switch 过渡动画 */
+        .switch-dot { transition: transform 0.2s ease-in-out, background-color 0.2s; }
+        
+        /* 防止未编译的 Mustache 标签闪烁 */
+        [v-cloak] { display: none; }
+
+        /* Segmented Control 样式 */
+        .segmented-control-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="bg-surface text-gray-800 font-sans antialiased min-h-screen">
+    <div id="app" v-cloak>
+        <!-- 顶部导航 -->
+        <header class="bg-white shadow-sm sticky top-0 z-40">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-primary text-white rounded flex items-center justify-center text-lg font-bold shadow-md">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <h1 class="text-xl font-semibold text-gray-900">APP发布管理</h1>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- 版本列表区 -->
+            <div class="space-y-6">
+                <div class="flex justify-between items-end mb-4 border-b border-gray-200 pb-2">
+                    <h2 class="text-lg font-medium text-gray-900 border-l-4 border-primary pl-3">各平台最新版本</h2>
+                    <div class="flex items-center gap-4">
+                        <button @click="showHistoryModal = true" class="text-primary hover:text-blue-700 text-sm font-medium transition flex items-center gap-1">
+                            <i class="fa-solid fa-clock-rotate-left"></i> 查看历史版本
+                        </button>
+                        <button @click="openCreateModal" class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded shadow-sm text-sm transition flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> 创建新版本发布
+                        </button>
+                    </div>
+                </div>
+
+                <div v-if="latestVersions.length === 0" class="text-center py-10 bg-white rounded-lg border border-gray-200 text-gray-500">
+                    暂无发布的版本信息
+                </div>
+
+                <div v-for="version in latestVersions" :key="version.id" class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all">
+                    <!-- 版本卡片头部 - 已修改：点击整行切换折叠 -->
+                    <div 
+                        @click="version.collapsed = !version.collapsed"
+                        class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer select-none hover:bg-gray-100 transition-colors">
+                        <div class="flex items-center gap-4">
+                            <div v-if="version.platform === 'Android'" class="text-green-500 bg-green-50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner">
+                                <i class="fa-brands fa-android"></i>
+                            </div>
+                            <div v-else-if="version.platform === 'iOS'" class="text-gray-700 bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner">
+                                <i class="fa-brands fa-apple"></i>
+                            </div>
+                            <div v-else-if="version.platform === '鸿蒙'" class="text-harmony bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner font-bold italic">
+                                H
+                            </div>
+
+                            <div>
+                                <div class="flex items-center gap-3">
+                                    <h3 class="text-lg font-bold text-gray-900">{{ version.version }}</h3>
+                                    <span class="text-xs font-medium px-2 py-1 rounded-full text-blue-700"
+                                          :class="version.platform === '鸿蒙' ? 'bg-blue-100' : 'bg-gray-100'">
+                                        {{ version.platform }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-500 mt-1">发布时间：{{ version.releaseDate }} <span v-if="version.description">| 描述：{{ version.description }}</span></p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-gray-500 w-8 h-8 flex items-center justify-center rounded-full transition">
+                                <i class="fa-solid transition-transform duration-300" :class="version.collapsed ? 'fa-chevron-down' : 'fa-chevron-up'"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 渠道详情列表 -->
+                    <div v-show="!version.collapsed" class="p-0 overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-white border-b border-gray-100 text-gray-500 text-sm">
+                                    <th class="px-6 py-3 font-medium w-1/3">发布渠道</th>
+                                    <th class="px-6 py-3 font-medium w-1/3">审核状态</th>
+                                    <th class="px-6 py-3 font-medium w-1/3">强制更新控制</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <tr v-for="channel in version.channels" :key="channel.id" class="hover:bg-gray-50 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-2">
+                                            <div class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+                                                <i v-if="channel.id === 'appstore'" class="fa-brands fa-app-store-ios"></i>
+                                                <i v-else-if="channel.id === 'huawei'" class="fa-solid fa-bag-shopping"></i>
+                                                <i v-else-if="channel.id === 'tencent'" class="fa-brands fa-tencent-weibo"></i>
+                                                <i v-else-if="channel.id === 'official'" class="fa-solid fa-globe"></i>
+                                                <i v-else class="fa-solid fa-mobile-screen"></i>
+                                            </div>
+                                            <span class="font-medium text-gray-700">{{ channel.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <button 
+                                                @click="handleStatusToggle(version, channel)"
+                                                :class="channel.status === 'online' ? 'bg-success border-transparent' : 'bg-gray-200 border-transparent'"
+                                                class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-success focus:ring-offset-2 no-tap-highlight"
+                                                role="switch"
+                                                :aria-checked="channel.status === 'online'">
+                                                <span 
+                                                    :class="channel.status === 'online' ? 'translate-x-5' : 'translate-x-0'"
+                                                    class="switch-dot pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0">
+                                                </span>
+                                            </button>
+                                            <span class="text-sm" :class="channel.status === 'online' ? 'text-success font-medium' : 'text-gray-400'">
+                                                {{ channel.status === 'online' ? '审核通过' : '审核中' }}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 relative group">
+                                        <div class="flex items-center gap-3">
+                                            <button 
+                                                @click="handleToggleClick(version, channel)"
+                                                :class="[
+                                                    channel.status !== 'online' 
+                                                        ? 'bg-gray-50 border-gray-300 border-dashed cursor-not-allowed opacity-70' 
+                                                        : (channel.forceUpdate ? 'bg-primary border-transparent cursor-pointer' : 'bg-gray-300 border-transparent cursor-pointer')
+                                                ]"
+                                                class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 no-tap-highlight"
+                                                role="switch"
+                                                :aria-checked="channel.forceUpdate">
+                                                <span 
+                                                    :class="[
+                                                        channel.forceUpdate ? 'translate-x-5' : 'translate-x-0',
+                                                        channel.status !== 'online' ? 'bg-gray-200 shadow-none' : 'bg-white shadow'
+                                                    ]"
+                                                    class="switch-dot pointer-events-none inline-block h-5 w-5 transform rounded-full ring-0">
+                                                </span>
+                                            </button>
+                                            <span class="text-sm" :class="channel.status !== 'online' ? 'text-gray-400' : (channel.forceUpdate ? 'text-primary font-medium' : 'text-gray-500')">
+                                                {{ channel.forceUpdate ? '已开启' : '已关闭' }}
+                                            </span>
+                                        </div>
+                                        <div v-if="channel.status !== 'online'" 
+                                             class="absolute left-6 top-full mt-1 hidden group-hover:block z-10 w-48 p-2 bg-gray-800 text-white text-xs rounded shadow-lg text-center">
+                                            正在审核中，无法开启强更
+                                            <div class="absolute -top-1 left-4 w-2 h-2 bg-gray-800 transform rotate-45"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 历史版本弹窗 -->
+        <div v-if="showHistoryModal" class="fixed inset-0 z-40 overflow-y-auto" aria-labelledby="history-modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showHistoryModal = false"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-5xl sm:w-full">
+                    <div class="bg-white px-6 py-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-30">
+                        <h3 class="text-lg font-bold text-gray-900" id="history-modal-title">历史发布版本库</h3>
+                        <button @click="showHistoryModal = false" class="text-gray-400 hover:text-gray-500">
+                            <i class="fa-solid fa-xmark text-xl"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="px-6 py-6 bg-gray-50 min-h-[500px] max-h-[80vh] overflow-y-auto">
+                        <div class="flex justify-center mb-6">
+                            <div class="inline-flex p-1 bg-gray-200 rounded-xl shadow-inner w-full sm:w-auto">
+                                <button v-for="p in ['Android', 'iOS', '鸿蒙']" :key="p"
+                                    @click="changeHistoryPlatform(p)"
+                                    class="segmented-control-item px-8 py-2 rounded-lg text-sm font-medium flex-1 sm:flex-none"
+                                    :class="historyPlatform === p ? 'bg-white text-primary shadow-sm scale-100' : 'text-gray-500 hover:text-gray-700 scale-95 opacity-80'">
+                                    {{ p }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-6 overflow-x-auto pb-2">
+                            <div class="flex flex-nowrap sm:flex-wrap gap-2">
+                                <button v-for="v in platformVersions" :key="v.id"
+                                    @click="historySelectedVersionId = v.id"
+                                    class="px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap"
+                                    :class="historySelectedVersionId === v.id ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'">
+                                    {{ v.version }}
+                                </button>
+                                <div v-if="platformVersions.length === 0" class="text-gray-400 text-sm py-2 text-center w-full">该平台暂无发布记录</div>
+                            </div>
+                        </div>
+
+                        <div v-if="selectedHistoryVersion" class="space-y-4">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="flex items-center gap-4">
+                                        <div v-if="selectedHistoryVersion.platform === 'Android'" class="text-green-500 bg-green-50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-brands fa-android"></i></div>
+                                        <div v-else-if="selectedHistoryVersion.platform === 'iOS'" class="text-gray-700 bg-gray-200 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner"><i class="fa-brands fa-apple"></i></div>
+                                        <div v-else class="text-harmony bg-blue-50 w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner font-bold italic">H</div>
+
+                                        <div>
+                                            <div class="flex items-center gap-3">
+                                                <h3 class="text-lg font-bold text-gray-900">{{ selectedHistoryVersion.version }}</h3>
+                                                <span class="text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">{{ selectedHistoryVersion.platform }}</span>
+                                            </div>
+                                            <p class="text-sm text-gray-500 mt-1">
+                                                发布时间：{{ selectedHistoryVersion.releaseDate }}
+                                                <span v-if="selectedHistoryVersion.description" class="ml-2 pl-2 border-l border-gray-300">描述：{{ selectedHistoryVersion.description }}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="p-0 overflow-x-auto">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="bg-white border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                                                <th class="px-6 py-3 font-medium w-1/3">发布渠道</th>
+                                                <th class="px-6 py-3 font-medium w-1/3">审核状态</th>
+                                                <th class="px-6 py-3 font-medium w-1/3">强制更新控制</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            <tr v-for="channel in selectedHistoryVersion.channels" :key="channel.id" class="hover:bg-gray-50 transition-colors">
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-2">
+                                                        <div class="w-6 h-6 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+                                                            <i v-if="channel.id.includes('appstore')" class="fa-brands fa-app-store-ios"></i>
+                                                            <i v-else-if="channel.id.includes('huawei')" class="fa-solid fa-bag-shopping"></i>
+                                                            <i v-else-if="channel.id.includes('tencent')" class="fa-brands fa-tencent-weibo"></i>
+                                                            <i v-else-if="channel.id.includes('official')" class="fa-solid fa-globe"></i>
+                                                            <i v-else class="fa-solid fa-mobile-screen"></i>
+                                                        </div>
+                                                        <span class="font-medium text-gray-700">{{ channel.name }}</span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <button @click="handleStatusToggle(selectedHistoryVersion, channel)"
+                                                            :class="channel.status === 'online' ? 'bg-success border-transparent' : 'bg-gray-200 border-transparent'"
+                                                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 transition-colors duration-200">
+                                                            <span :class="channel.status === 'online' ? 'translate-x-5' : 'translate-x-0'"
+                                                                class="switch-dot pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0"></span>
+                                                        </button>
+                                                        <span class="text-sm" :class="channel.status === 'online' ? 'text-success font-medium' : 'text-gray-400'">
+                                                            {{ channel.status === 'online' ? '审核通过' : '审核中' }}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="flex items-center gap-3">
+                                                        <button @click="handleToggleClick(selectedHistoryVersion, channel)"
+                                                            :class="[
+                                                                channel.status !== 'online' ? 'bg-gray-100 opacity-50 cursor-not-allowed' : (channel.forceUpdate ? 'bg-primary' : 'bg-gray-300')
+                                                            ]"
+                                                            class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 transition-all duration-200">
+                                                            <span :class="channel.forceUpdate ? 'translate-x-5' : 'translate-x-0'"
+                                                                class="switch-dot pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0"></span>
+                                                        </button>
+                                                        <span class="text-sm" :class="channel.status !== 'online' ? 'text-gray-400' : (channel.forceUpdate ? 'text-primary font-medium' : 'text-gray-500')">
+                                                            {{ channel.forceUpdate ? '已开启' : '已关闭' }}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="text-center py-20 text-gray-400">
+                             请从上方选择一个版本以查看详情
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 创建新版本发布弹窗 -->
+        <div v-if="showCreateModal" class="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="showCreateModal = false"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="flex justify-between items-center mb-5">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">创建新版本发布</h3>
+                            <button @click="showCreateModal = false" class="text-gray-400 hover:text-gray-500">
+                                <i class="fa-solid fa-xmark text-lg"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">版本号 <span class="text-red-500">*</span></label>
+                                <input type="text" v-model="newVersionForm.version" maxlength="10" placeholder="例如：2.3.0" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">平台 <span class="text-red-500">*</span></label>
+                                <div class="flex gap-2">
+                                    <button v-for="p in ['Android', 'iOS', '鸿蒙']" :key="p"
+                                        @click="newVersionForm.platform = p"
+                                        type="button"
+                                        class="flex-1 py-2 px-3 text-sm font-medium rounded-md border transition-all"
+                                        :class="newVersionForm.platform === p ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white text-gray-600 border-gray-300 hover:border-primary hover:text-primary'">
+                                        {{ p }}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">发布日期与时间 <span class="text-red-500">*</span></label>
+                                <input type="datetime-local" v-model="newVersionForm.releaseDate" class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1 flex justify-between">版本描述 <span class="text-gray-400 text-xs">{{ newVersionForm.description.length }}/50</span></label>
+                                <textarea v-model="newVersionForm.description" maxlength="50" rows="3" placeholder="请输入更新日志..." class="w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" @click="submitCreateVersion" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-blue-600 sm:ml-3 sm:w-auto sm:text-sm">确认创建</button>
+                        <button type="button" @click="showCreateModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 全局二次确认弹窗 (统一管理) -->
+        <div v-if="confirmModal.show" class="fixed inset-0 z-50 overflow-y-auto">
+            <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" @click="cancelToggle"></div>
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+                <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-warning bg-opacity-10 sm:mx-0 sm:h-10 sm:w-10">
+                                <i class="fa-solid fa-triangle-exclamation text-warning text-lg"></i>
+                            </div>
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                                <h3 class="text-lg font-medium text-gray-900">{{ confirmModal.title }}</h3>
+                                <div class="mt-2">
+                                    <p class="text-sm text-gray-500">
+                                        您正在修改 <strong>{{ confirmModal.version }}</strong> 在 <strong>{{ confirmModal.channelName }}</strong> 渠道的策略。<br><br>
+                                        <span :class="confirmModal.type === 'forceUpdate' && confirmModal.targetState ? 'text-red-500 font-medium' : ''">
+                                            {{ confirmModal.content }}
+                                        </span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" @click="confirmToggle" 
+                                class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white sm:ml-3 sm:w-auto sm:text-sm transition-colors" 
+                                :class="confirmModal.targetState ? 'bg-primary hover:bg-blue-600' : 'bg-gray-600 hover:bg-gray-700'">
+                            {{ confirmModal.confirmButtonText }}
+                        </button>
+                        <button type="button" @click="cancelToggle" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 全局 Toast -->
+        <div class="fixed top-5 left-1/2 transform -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none">
+            <transition-group name="toast">
+                <div v-for="toast in toasts" :key="toast.id" 
+                     class="flex items-center gap-2 px-4 py-3 rounded shadow-lg text-sm font-medium"
+                     :class="toast.type === 'success' ? 'bg-success text-white' : (toast.type === 'error' ? 'bg-danger text-white' : 'bg-gray-800 text-white')">
+                    <i class="fa-solid" :class="toast.type === 'success' ? 'fa-circle-check' : 'fa-circle-info'"></i>
+                    {{ toast.message }}
+                </div>
+            </transition-group>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, watch } = Vue;
+
+        createApp({
+            setup() {
+                // 通用 Android 渠道预设
+                const androidChannels = [
+                    { id: "official", name: "官网渠道", status: "online", forceUpdate: true },
+                    { id: "tencent", name: "应用宝", status: "online", forceUpdate: true },
+                    { id: "huawei", name: "华为应用市场", status: "online", forceUpdate: true },
+                    { id: "xiaomi", name: "小米应用商店", status: "online", forceUpdate: true },
+                    { id: "oppo", name: "OPPO软件商店", status: "online", forceUpdate: true },
+                    { id: "vivo", name: "vivo应用商店", status: "online", forceUpdate: true }
+                ];
+
+                // 核心数据
+                const versions = ref([
+                    {
+                        id: 4,
+                        version: "2.5.0",
+                        platform: "鸿蒙",
+                        releaseDate: "2026-04-10 10:00",
+                        description: "原生鸿蒙版重构上线，流畅度大幅提升。",
+                        collapsed: false,
+                        channels: [{ id: "huawei_hg", name: "华为应用市场 (HarmonyOS)", status: "reviewing", forceUpdate: false }]
+                    },
+                    {
+                        id: 1,
+                        version: "2.2.0",
+                        platform: "Android",
+                        releaseDate: "2026-03-01 14:30",
+                        description: "修复已知内存泄漏，优化视频加载速度。",
+                        collapsed: false,
+                        channels: JSON.parse(JSON.stringify(androidChannels))
+                    },
+                    {
+                        id: 2,
+                        version: "2.2.0",
+                        platform: "iOS",
+                        releaseDate: "2026-02-28 09:00",
+                        description: "iOS平台稳定性修复。",
+                        collapsed: false,
+                        channels: [{ id: "appstore", name: "App Store", status: "online", forceUpdate: true }]
+                    },
+                    {
+                        id: 3,
+                        version: "2.1.0",
+                        platform: "Android",
+                        releaseDate: "2026-01-15 16:00",
+                        description: "年度大版本更新，全新UI界面。",
+                        collapsed: true,
+                        channels: JSON.parse(JSON.stringify(androidChannels)).map(c => ({...c, forceUpdate: false}))
+                    }
+                ]);
+
+                // 历史弹窗专有状态
+                const historyPlatform = ref('Android');
+                const historySelectedVersionId = ref(null);
+
+                // UI 状态
+                const showCreateModal = ref(false);
+                const showHistoryModal = ref(false);
+                const toasts = ref([]);
+                let toastIdSeed = 0;
+
+                const newVersionForm = ref({ version: '', platform: 'Android', releaseDate: '', description: '' });
+                
+                // 统一确认弹窗状态
+                const confirmModal = ref({ 
+                    show: false, 
+                    title: '',
+                    content: '',
+                    type: '', 
+                    version: '', 
+                    channelName: '', 
+                    targetState: false, 
+                    confirmButtonText: '确认',
+                    onConfirm: null 
+                });
+
+                // 计算属性 - 最新版本 (首页展示)
+                const latestVersions = computed(() => {
+                    const map = new Map();
+                    const sorted = [...versions.value].sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate));
+                    sorted.forEach(v => {
+                        if (!map.has(v.platform)) map.set(v.platform, v);
+                    });
+                    return Array.from(map.values());
+                });
+
+                // 计算属性 - 历史版本过滤
+                const platformVersions = computed(() => {
+                    return versions.value
+                        .filter(v => v.platform === historyPlatform.value)
+                        .sort((a, b) => new Date(b.releaseDate) - new Date(a.releaseDate));
+                });
+
+                const selectedHistoryVersion = computed(() => {
+                    return versions.value.find(v => v.id === historySelectedVersionId.value);
+                });
+
+                // 监听平台切换
+                const changeHistoryPlatform = (p) => {
+                    historyPlatform.value = p;
+                };
+
+                watch([platformVersions, showHistoryModal], () => {
+                    if (platformVersions.value.length > 0 && (!historySelectedVersionId.value || !platformVersions.value.find(v => v.id === historySelectedVersionId.value))) {
+                        historySelectedVersionId.value = platformVersions.value[0].id;
+                    }
+                }, { immediate: true });
+
+                // 通用方法
+                const showToast = (message, type = 'success') => {
+                    const id = toastIdSeed++;
+                    toasts.value.push({ id, message, type });
+                    setTimeout(() => toasts.value = toasts.value.filter(t => t.id !== id), 3000);
+                };
+
+                // 审核状态切换
+                const handleStatusToggle = (version, channel) => {
+                    const isOnline = channel.status === 'online';
+                    const targetStatus = isOnline ? 'reviewing' : 'online';
+                    
+                    confirmModal.value = {
+                        show: true,
+                        type: 'status',
+                        title: isOnline ? '确认下线渠道' : '确认审核通过',
+                        content: isOnline 
+                            ? `您确认要将该渠道变更为“审核中”状态吗？下线后将自动关闭强制更新。` 
+                            : `您确认该渠道已通过应用商店审核，并准备发布上线吗？`,
+                        version: version.version,
+                        channelName: channel.name,
+                        targetState: targetStatus === 'online',
+                        confirmButtonText: '确认变更',
+                        onConfirm: () => {
+                            channel.status = targetStatus;
+                            if (targetStatus === 'reviewing') {
+                                channel.forceUpdate = false;
+                            }
+                            confirmModal.value.show = false;
+                            showToast(isOnline ? `已变更为审核中` : `审核通过并已上线`, 'success');
+                        }
+                    };
+                };
+
+                // 强制更新控制切换
+                const handleToggleClick = (version, channel) => {
+                    if (channel.status !== 'online') {
+                        showToast(`请先通过审核`, 'error');
+                        return;
+                    }
+                    const target = !channel.forceUpdate;
+                    
+                    confirmModal.value = {
+                        show: true,
+                        type: 'forceUpdate',
+                        title: target ? '确认开启强制更新' : '确认关闭强制更新',
+                        content: target 
+                            ? '开启强制更新后，该渠道的旧版本用户必须升级才能继续使用APP。请务必确认新版本运行稳定。' 
+                            : '关闭强制更新后，用户将不再被强制要求升级，可自由选择。',
+                        version: version.version,
+                        channelName: channel.name,
+                        targetState: target,
+                        confirmButtonText: target ? '确认开启强制更新' : '关闭强制更新',
+                        onConfirm: () => {
+                            channel.forceUpdate = target;
+                            confirmModal.value.show = false;
+                            showToast(`强更状态已更新`, 'success');
+                        }
+                    };
+                };
+
+                const confirmToggle = () => confirmModal.value.onConfirm && confirmModal.value.onConfirm();
+                const cancelToggle = () => confirmModal.value.show = false;
+
+                const openCreateModal = () => {
+                    const now = new Date();
+                    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                    newVersionForm.value = { version: '', platform: 'Android', releaseDate: now.toISOString().slice(0, 16), description: '' };
+                    showCreateModal.value = true;
+                };
+
+                const submitCreateVersion = () => {
+                    const form = newVersionForm.value;
+                    if(!form.version || !/^[0-9.]+$/.test(form.version)) return showToast('版本号格式错误', 'error');
+                    
+                    const newV = {
+                        id: Date.now(),
+                        version: form.version,
+                        platform: form.platform,
+                        releaseDate: form.releaseDate.replace('T', ' '),
+                        description: form.description,
+                        collapsed: false,
+                        channels: form.platform === 'Android' ? [
+                            { id: "official", name: "官网渠道", status: "online", forceUpdate: false },
+                            { id: "tencent", name: "应用宝", status: "reviewing", forceUpdate: false },
+                            { id: "huawei", name: "华为应用市场", status: "reviewing", forceUpdate: false },
+                            { id: "xiaomi", name: "小米应用商店", status: "reviewing", forceUpdate: false },
+                            { id: "oppo", name: "OPPO软件商店", status: "reviewing", forceUpdate: false },
+                            { id: "vivo", name: "vivo应用商店", status: "reviewing", forceUpdate: false }
+                        ] : (form.platform === 'iOS' ? [
+                            { id: "appstore", name: "App Store", status: "reviewing", forceUpdate: false }
+                        ] : [
+                            { id: "huawei_hg", name: "华为应用市场", status: "reviewing", forceUpdate: false }
+                        ])
+                    };
+                    versions.value.unshift(newV);
+                    showCreateModal.value = false;
+                    showToast('创建成功');
+                };
+
+                return {
+                    versions, latestVersions,
+                    showCreateModal, showHistoryModal, newVersionForm, confirmModal, toasts,
+                    historyPlatform, historySelectedVersionId, platformVersions, selectedHistoryVersion,
+                    changeHistoryPlatform, openCreateModal, handleStatusToggle, handleToggleClick,
+                    confirmToggle, cancelToggle, submitCreateVersion
+                };
+            }
+        }).mount('#app');
+    </script>
+
+    <style>
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s ease; }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-20px) scale(0.9); }
+    </style>
+</body>
+</html>

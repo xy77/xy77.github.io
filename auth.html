@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证</title>
+	<link rel="icon" href="https://res.wx.qq.com/a/wx_fed/assets/res/NTI4MWU5.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 针对无边框极简风格的额外微调 */
+        input:focus {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-xs">
+        <!-- 仅保留输入框，启用自动聚焦 -->
+        <input 
+            type="password" 
+            id="auth-password" 
+            autofocus
+            class="w-full p-4 text-center border-b-2 border-gray-300 bg-transparent text-xl outline-none focus:border-blue-500 transition-all font-mono"
+        >
+        <!-- 隐藏的错误提示占位，保持 UI 简洁 -->
+        <p id="error-msg" class="text-red-500 text-sm text-center mt-2 opacity-0 transition-opacity"></p>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        const input = document.getElementById('auth-password');
+        const errorMsg = document.getElementById('error-msg');
+
+        // 处理验证逻辑
+        const doVerify = () => {
+            const pwd = input.value;
+            if (handleLogin(pwd)) {
+                window.location.href = 'index.html';
+            } else {
+                // 错误反馈：输入框变红并短暂显示提示
+                input.classList.add('border-red-500');
+                errorMsg.classList.remove('opacity-0');
+                errorMsg.textContent = 'ERROR';
+                input.value = '';
+                setTimeout(() => {
+                    input.classList.remove('border-red-500');
+                    errorMsg.classList.add('opacity-0');
+                }, 3000);
+            }
+        };
+
+        // 监听回车键
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                doVerify();
+            }
+        };
+    </script>
+</body>
+</html>

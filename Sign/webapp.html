@@ -1,0 +1,2865 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <style>
+        :root {
+            --primary-blue: #1677ff;
+            --link-blue: #1890ff;
+            --hover-blue: #4096ff;
+            --wechat-green: #07c160;
+            --sidebar-bg: #001529;
+            --sidebar-text: #a6adb4;
+            --sidebar-active: #1677ff;
+            --bg-body: #f0f2f5;
+            --border-color: #d9d9d9;
+            --text-main: #333;
+            --text-secondary: #666;
+            --text-gray: #999;
+            --cancel-orange: #ff4d4f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            outline: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-body);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* --- 左侧菜单栏 --- */
+        .sidebar {
+            width: 240px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            padding-top: 20px;
+            color: #fff;
+            flex-shrink: 0;
+            position: relative;
+            transition: width 0.3s ease;
+        }
+
+        .sidebar.collapsed {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* 需求5：左侧菜单栏悬浮按钮 */
+        .sidebar-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 30px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .sidebar-toggle-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .sidebar-restore-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--sidebar-bg);
+            border-radius: 50%;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 999;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        .sidebar-title {
+            padding: 0 24px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 10px;
+            white-space: nowrap; /* 防止折叠时文字换行 */
+        }
+
+        .menu-item {
+            padding: 16px 24px;
+            cursor: pointer;
+            color: var(--sidebar-text);
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+
+        .menu-item:hover {
+            color: #fff;
+        }
+
+        .menu-item.active {
+            background-color: var(--sidebar-active);
+            color: #fff;
+        }
+
+        /* --- 右侧主内容区 --- */
+        .main-content {
+            flex: 1;
+            position: relative;
+            background-color: #fff;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6));
+        }
+
+        .view-container {
+            display: none;
+            width: 100%;
+            height: 100%;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .view-container.active {
+            display: flex;
+        }
+
+        /* ================= WEB 登录样式 (主弹窗) ================= */
+        .login-modal {
+            width: 680px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .close-modal-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            z-index: 10;
+            color: rgba(255,255,255,0.8);
+            font-size: 24px;
+            line-height: 24px;
+            text-align: center;
+            font-weight: 300;
+        }
+        .close-modal-btn:hover {
+            color: #fff;
+        }
+        .sub-auth-modal .close-modal-btn {
+             color: #999;
+             display: none; 
+        }
+        .sub-auth-modal .close-modal-btn:hover {
+             color: #333;
+        }
+
+        .modal-header {
+            height: 120px;
+            background: linear-gradient(135deg, #3b9eff 0%, #1677ff 100%);
+            position: relative;
+            padding: 30px;
+            color: #fff;
+            display: flex;
+            align-items: center; 
+        }
+
+        .decoration-circle {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .c1 { width: 100px; height: 100px; top: -20px; right: 150px; }
+        .c2 { width: 60px; height: 60px; top: 40px; right: 80px; }
+        .c3 { width: 80px; height: 80px; top: 10px; right: -20px; box-shadow: 0 0 20px rgba(255,255,255,0.2); background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.1) 70%); }
+
+        .brand-container {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .brand-logo {
+            width: 48px;
+            height: 48px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            backdrop-filter: blur(4px);
+        }
+        
+        .brand-text {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .modal-body { display: flex; padding: 40px 20px 20px; min-height: 360px; }
+        
+        .login-section { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 0 10px; 
+            justify-content: center; 
+            position: relative; 
+        }
+
+        .login-section:first-of-type {
+            flex: 0 0 380px; 
+        }
+
+        .login-section:last-of-type {
+            flex: 1; 
+        }
+
+        .divider { width: 1px; background-color: #eee; margin: 0 10px; }
+        
+        .qr-container {
+            width: 180px; height: 180px; border: 1px solid #eee; padding: 10px; border-radius: 8px;
+            background: #fff; margin-bottom: 20px;
+        }
+        .qr-code {
+            width: 100%; height: 100%; opacity: 0.8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'/%3E%3Crect x='14' y='3' width='7' height='7'/%3E%3Crect x='14' y='14' width='7' height='7'/%3E%3Crect x='3' y='14' width='7' height='7'/%3E%3Cpath d='M10 10h4v4h-4z'/%3E%3Cpath d='M7 7h.01'/%3E%3Cpath d='M17 7h.01'/%3E%3Cpath d='M7 17h.01'/%3E%3Cpath d='M17 17h.01'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .wechat-label {
+            display: flex;
+            align-items: center;
+            font-size: 16px; 
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .wechat-icon {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            fill: var(--wechat-green);
+        }
+
+        .form-content { width: 100%; max-width: 320px; }
+        .form-group { margin-bottom: 20px; }
+        
+        .input-wrapper {
+            display: flex; align-items: center; border: 1px solid var(--border-color);
+            border-radius: 6px; padding: 4px 12px; height: 44px; transition: all 0.3s;
+        }
+        .input-wrapper:hover {
+            border-color: var(--hover-blue);
+        }
+        .input-wrapper:focus-within { 
+            border-color: var(--primary-blue); 
+            box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2); 
+        }
+        
+        .input-field { border: none; flex: 1; font-size: 14px; color: var(--text-main); background: transparent; }
+        .prefix { color: var(--text-main); margin-right: 12px; font-size: 14px; display: flex; align-items: center; }
+        
+        .verify-btn { 
+            border: none; 
+            background: none; 
+            color: #1890ff; 
+            font-size: 14px; 
+            cursor: pointer; 
+            padding-left: 12px; 
+            border-left: 1px solid #eee; 
+            white-space: nowrap; 
+        }
+        
+        .above-btn-area {
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 12px;
+            min-height: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-footer-agreement {
+            width: 100%;
+            padding: 0 20px 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-gray);
+        }
+        
+        .agreement-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .agreement-checkbox {
+            margin-right: 6px;
+            cursor: pointer;
+            width: 14px;
+            height: 14px;
+            accent-color: var(--primary-blue);
+        }
+
+        .agreement-text a {
+            color: var(--text-gray);
+            text-decoration: underline;
+            margin: 0 2px;
+            font-weight: 500;
+        }
+
+        .password-links {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        .action-link {
+            color: var(--link-blue);
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .action-link:hover { text-decoration: underline; }
+
+        .submit-btn {
+            width: 100%; height: 44px; background-color: var(--primary-blue); color: #fff;
+            border: none; border-radius: 6px; font-size: 16px; cursor: pointer;
+            max-width: 320px;
+        }
+        .submit-btn:hover { background-color: var(--hover-blue); }
+
+        .switch-mode-btn {
+            margin-top: 16px;
+            color: var(--link-blue);
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .switch-mode-btn:hover { text-decoration: underline; }
+
+        /* ================= 独立子弹窗样式 ================= */
+        .sub-auth-modal {
+            width: 480px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            padding: 30px 40px;
+        }
+        
+        .sub-auth-modal .submit-btn {
+            max-width: 100%;
+        }
+
+        .sub-modal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .sub-modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            flex: 1;
+            text-align: center;
+            position: absolute;
+            left: 0;
+            right: 0;
+            pointer-events: none;
+        }
+
+        .back-btn {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.3s;
+            position: relative;
+            z-index: 2;
+        }
+        .back-btn:hover { color: var(--primary-blue); }
+        .back-icon { margin-right: 4px; font-size: 16px; }
+
+        .sub-agreement-area {
+            margin-top: 15px;
+            text-align: center;
+            display: none;
+        }
+
+        .app-view-bg {
+            background-color: #fff; 
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .phone-simulator {
+            width: 428px;
+            height: 926px;
+            background-color: #f5f5f5;
+            box-shadow: 0 0 40px rgba(0,0,0,0.1);
+            border-radius: 40px;
+            border: none; 
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .phone-status-bar {
+            height: 44px;
+            background: #f5f5f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+            z-index: 20;
+        }
+
+        /* 需求1：更新 Header 布局，确保左侧返回，标题居中 */
+        .mini-app-header {
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 17px;
+            font-weight: 500;
+            background: #f5f5f5;
+            position: relative;
+            flex-shrink: 0;
+            z-index: 20;
+        }
+        
+        .nav-back {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: #333;
+            z-index: 10;
+            width: 87px; /* 设定宽度与右侧胶囊平衡，确保标题视觉居中 */
+        }
+        
+        /* 需求3：修改 Header 样式 */
+        .mini-app-header.home-header {
+             justify-content: flex-start;
+        }
+        
+        /* 需求3：调整标题位置 */
+        .header-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            font-size: 17px;
+            pointer-events: none;
+        }
+        
+        /* 需求3：首页 Header 左侧布局 */
+        .header-left-area {
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .mini-logo {
+            width: 24px;
+            height: 24px;
+            background: #1677ff;
+            border-radius: 50%;
+            margin-right: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 12px;
+        }
+
+        /* 需求1：胶囊背景色改为深色 */
+        .capsule-btn {
+            position: absolute; 
+            width: 87px;
+            height: 32px;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.5); /* 需求1 修改 */
+            top: 6px; 
+            right: 16px;
+            z-index: 25;
+        }
+
+        .phone-content {
+            flex: 1;
+            padding: 0 30px; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f5f5f5;
+            position: relative; /* 为绝对定位元素提供锚点 */
+        }
+        
+        .app-page-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 40px; /* Logo 区域的上边距 */
+            padding-bottom: 40px; /* 底部协议的上边距 */
+        }
+        
+        #app-login-input-view {
+            display: none;
+        }
+
+        .app-logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: #e0e0e0;
+            border-radius: 50%;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .app-name { font-size: 20px; font-weight: 600; margin-bottom: 0; }
+
+        .app-btn-primary {
+            width: 100%; height: 48px; 
+            background-color: #1890ff; 
+            color: #fff;
+            border: none; border-radius: 50px; 
+            font-size: 16px; font-weight: 500; cursor: pointer;
+            margin-bottom: 16px; display: flex; align-items: center; justify-content: center;
+        }
+        .app-btn-primary:hover { background-color: var(--hover-blue); }
+
+        .app-btns-container {
+            width: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            margin-top: 150px;
+        }
+
+        .app-btn-sub {
+            width: 100%; height: 48px; background: transparent; 
+            border: 1px solid #d9d9d9;
+            border-radius: 50px; color: var(--text-main); font-size: 15px; cursor: pointer;
+        }
+        .app-btn-sub:hover { background-color: rgba(0,0,0,0.05); }
+
+        .app-agreement-area {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-gray);
+            margin-top: 20px;
+        }
+        .app-agreement-area a {
+            color: #1890ff; 
+            text-decoration: none;
+        }
+
+        .app-input-form {
+            width: 100%;
+            margin-top: 40px;
+        }
+        .app-input-form .input-wrapper {
+            margin-bottom: 16px;
+            background: #fff;
+        }
+
+        .app-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+            z-index: 10000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        /* ================= 自定义确认弹窗样式 ================= */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .confirm-box {
+            background: #fff;
+            border-radius: 8px;
+            width: 320px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: center;
+        }
+        .confirm-text {
+            font-size: 15px;
+            color: #333;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        .confirm-text a {
+            color: #1890ff; 
+            text-decoration: underline; 
+            font-weight: 500;
+        }
+        .confirm-btns {
+            display: flex;
+            gap: 12px;
+        }
+        .confirm-btn {
+            flex: 1;
+            height: 36px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+        }
+        .btn-cancel {
+            background: #f5f5f5;
+            color: #666;
+        }
+        .btn-confirm {
+            background: var(--primary-blue);
+            color: #fff;
+        }
+
+        /* ================= 咨询首页样式（新增） ================= */
+        .consult-page-content {
+            flex: 1;
+            width: 100%;
+            display: block; 
+            position: relative;
+            background: #f5f5f5;
+            height: 100%;
+        }
+        
+        .chat-list {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            padding: 20px 15px;
+            /* 需求2：因增加了更多功能按钮，增加底部padding防止遮挡 */
+            padding-bottom: 110px; 
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            transition: padding-bottom 0.2s;
+        }
+
+        .chat-message {
+            max-width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 15px;
+            line-height: 1.5;
+            word-break: break-all;
+            position: relative;
+            margin-bottom: 5px;
+            animation: fadeIn 0.2s ease-out;
+            cursor: default;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-message.user-msg {
+            align-self: flex-end;
+            background-color: #1890ff;
+            color: #ffffff;
+            border-top-right-radius: 2px;
+        }
+
+        /* 仅最新一条用户消息显示下划线 */
+        .chat-message.user-msg.latest {
+            text-decoration: underline;
+            text-decoration-color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+        }
+
+        .chat-message.ai-msg {
+            align-self: flex-start;
+            background-color: #fff;
+            color: #333;
+            border-top-left-radius: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            white-space: pre-wrap; 
+        }
+
+        .msg-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #999;
+            border-top: 1px solid #eee;
+            padding-top: 8px;
+            width: 100%;
+        }
+        .msg-action-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .msg-action-item:hover {
+            color: var(--primary-blue);
+        }
+
+        .consult-logo-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 40px; 
+            margin-bottom: 20px;
+        }
+
+        .bottom-dock {
+            position: absolute;
+            bottom: -0;
+            left: 0;
+            width: 100%;
+            z-index: 50;
+            background: #f5f5f5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 需求2：更多功能标签容器 */
+        .tags-container {
+            display: flex;
+            align-items: center;
+            align-self: flex-start;
+            width: 100%;
+            margin-bottom: 5px;
+            padding-left: 15px; /* 与下方输入框wrapper padding-left对齐 */
+            gap: 10px; /* 更多功能与我的权益显示间隔 */
+        }
+
+        /* 需求2：更多功能标签 */
+        .more-func-tag {
+            align-self: flex-start;
+            background: #fff;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 50px; /* 全圆角 */
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 2px 2px rgba(24, 144, 255, 0.2); /* 20% opacity of #1890ff */
+            cursor: pointer;
+            z-index: 51;
+            position: relative;
+        }
+        
+        .more-func-icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            fill: #333;
+        }
+
+        /* 需求4：未登录引导遮罩 */
+        .login-guide-overlay {
+            position: absolute;
+            bottom: 50px; /* 向上偏移 */
+            left: 15px;
+            right: 15px;
+            height: 60px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 8px;
+            z-index: 60;
+            display: none; /* 默认隐藏，JS控制 */
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            backdrop-filter: blur(2px);
+        }
+        
+        .guide-text {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .guide-login-btn {
+            background: var(--primary-blue);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .consult-bottom-bar {
+            position: relative;
+            width: 100%;
+            background: #f5f5f5; 
+            display: flex;
+            align-items: flex-end; 
+            padding: 10px 15px;
+            transition: background-color 0.2s; 
+            padding-bottom: 30px; /* 增加底部安全区 */
+        }
+        
+        .consult-bottom-bar.recording-active {
+            align-items: center; 
+            justify-content: center;
+            height: 60px; 
+        }
+        
+        .bar-icon {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            cursor: pointer;
+            color: #666;
+            margin: 0 5px; 
+            display: block; 
+        }
+        
+        .bar-icon.hidden {
+            display: none;
+        }
+        
+        /* 需求7：停止按钮样式优化 */
+        .icon-stop {
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            fill: #fff; /* 白色图标 */
+            display: none;
+            margin: 0 5px;
+            background-color: #ff4d4f; /* 红色背景 */
+            border-radius: 50%; /* 圆形 */
+            padding: 6px;
+            box-shadow: 0 2px 6px rgba(255, 77, 79, 0.3);
+        }
+        .icon-stop.visible {
+            display: block;
+        }
+        
+        .bar-icon.left-icon {
+            margin-right: 8px;
+            margin-bottom: 8px; /* 对齐输入框底部 */
+        }
+        
+        .recording-tip-overlay {
+            position: absolute;
+            bottom: 100%; 
+            left: 0; 
+            width: 100%;
+            text-align: center;
+            display: none;
+            pointer-events: none;
+            z-index: 60;
+            margin-bottom: 10px;
+        }
+        .recording-tip-text {
+            background: rgba(0,0,0,0.6);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: inline-block;
+        }
+        
+        .consult-input-wrapper {
+            flex: 1;
+            margin: 0; 
+            min-height: 40px; 
+            background: #fff;
+            border-radius: 20px; 
+            display: flex;
+            align-items: flex-end; 
+            padding: 8px 10px; 
+            cursor: text;
+            position: relative;
+        }
+        
+        .consult-input-field {
+            flex: 1;
+            background: transparent;
+            border: none;
+            resize: none; 
+            outline: none;
+            font-size: 15px;
+            color: #333;
+            line-height: 1.5; 
+            height: 23px; 
+            max-height: 69px; 
+            padding: 0 5px;
+            margin-bottom: 2px; 
+            overflow-y: hidden; 
+            font-family: inherit;
+        }
+        
+        .consult-input-field::placeholder {
+            color: #999;
+        }
+        
+        /* 需求8：按住说话按钮高度与输入框一致 */
+        .btn-voice-hold {
+            flex: 1;
+            height: 40px; /* 改为固定高度，约等于输入框外层高度 */
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 500;
+            color: #333;
+            user-select: none;
+            cursor: pointer;
+            margin: 0 5px;
+            border-radius: 20px;
+        }
+        .btn-voice-hold.active {
+            display: flex;
+        }
+        
+        .btn-voice-hold.recording {
+            color: var(--primary-blue);
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .btn-voice-hold.canceling {
+            color: var(--cancel-orange);
+            background: rgba(0,0,0,0.05);
+        }
+        
+        .send-btn {
+            background: #1677ff;
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 4px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-left: 5px;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            display: none; 
+        }
+        .send-btn.active {
+            display: block;
+        }
+
+        .auth-drawer-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .auth-drawer-overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .auth-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 101;
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .auth-drawer.active {
+            transform: translateY(0);
+        }
+
+        /* 需求6：微信授权手机号专用抽屉 */
+        .wechat-phone-drawer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 55%; /* 55vh relative to container */
+            background: #fff;
+            border-radius: 20px 20px 0 0;
+            z-index: 102; /* 比普通 drawer 高 */
+            transform: translateY(100%);
+            transition: transform 0.3s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .wechat-phone-drawer.active {
+            transform: translateY(0);
+        }
+
+        .drawer-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .drawer-desc {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .drawer-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 10px;
+            fill: var(--wechat-green);
+        }
+
+        /* 虚拟键盘样式 */
+        .virtual-keyboard {
+            position: relative;
+            bottom: auto;
+            left: auto;
+            width: 100%;
+            height: 0;
+            background: #d1d5db;
+            overflow: hidden;
+            transition: height 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .keyboard-hint {
+            margin-top: -20px;
+        }
+        
+        .keyboard-collapse-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            padding: 5px;
+            cursor: pointer;
+            opacity: 0.5;
+        }
+        .keyboard-collapse-btn:hover { opacity: 1; }
+
+        .virtual-keyboard.active {
+            height: 280px;
+        }
+
+        /* 右键菜单样式 - iOS 风格 */
+        .context-menu {
+            position: fixed; 
+            background-color: rgba(0, 0, 0, 0.85); 
+            color: #fff; 
+            border-radius: 12px; 
+            padding: 0; 
+            z-index: 3000; 
+            display: none;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,0,0,0.05);
+            min-width: 120px;
+        }
+        
+        .context-menu::after {
+            display: none; 
+        }
+
+        .context-menu ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: row; 
+            align-items: center;
+        }
+
+        .context-menu li {
+            padding: 10px 16px;
+            cursor: pointer;
+            position: relative;
+            font-weight: 500;
+        }
+        
+        .context-menu li:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 10px;
+            bottom: 10px;
+            width: 1px;
+            background: rgba(0,0,0,0.1);
+        }
+
+        .context-menu li:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .context-menu li:first-child {
+            border-radius: 12px 0 0 12px;
+        }
+        
+        .context-menu li:last-child {
+            border-radius: 0 12px 12px 0;
+        }
+        
+        /* App登录 - 运营商登录页面相关样式 */
+        .current-phone-display {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin: 40px 0 10px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+        }
+        /* 需求2：一键登录页面的号码右侧小按钮 */
+        .change-num-btn {
+            font-size: 14px;
+            color: #1677ff;
+            margin-left: 10px;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        
+        .operator-tag {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 40px;
+        }
+        .other-login-section {
+            margin-top: auto;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .other-login-title {
+            font-size: 13px;
+            color: #999;
+            margin-bottom: 20px;
+            position: relative;
+            width: 100%;
+            text-align: center;
+        }
+        .other-login-title::before, .other-login-title::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 60px;
+            height: 1px;
+            background: #eee;
+        }
+        .other-login-title::before { right: 55%; }
+        .other-login-title::after { left: 55%; }
+        
+        .login-methods-grid {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .method-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .method-icon-circle {
+            width: 44px;
+            height: 44px;
+            border: 1px solid #e8e8e8;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: #fff;
+        }
+        .method-item:hover .method-icon-circle {
+            border-color: #d9d9d9;
+            background: #fafafa;
+        }
+        .method-icon {
+            width: 22px;
+            height: 22px;
+            fill: #666;
+        }
+        .method-name {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* 需求4：App分段控制器样式 (已废弃原本的tabs，但保留类名以防他用) */
+        .app-login-tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+            padding: 0 20px;
+        }
+        .app-login-tab {
+            font-size: 16px;
+            color: #666;
+            margin: 0 15px;
+            padding-bottom: 8px;
+            cursor: pointer;
+            position: relative;
+        }
+        .app-login-tab.active {
+            color: #333;
+            font-weight: 600;
+        }
+        .app-login-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            background: #1677ff;
+            border-radius: 2px;
+        }
+
+        .login-form-group {
+            display: none;
+            width: 100%;
+        }
+        .login-form-group.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* 新增：微信登录模拟调试面板 */
+        .debug-controls {
+            position: absolute;
+            /* 需求1：调试面板显示在靠近APP页面的位置 */
+            /* 屏幕中心（50%） + 手机宽度一半（214px） + 间距（26px） = 240px */
+            left: 50%;
+            margin-left: 240px; 
+            top: 50%;
+            transform: translateY(-50%);
+            
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 9999;
+        }
+        .debug-btn {
+            padding: 8px 16px;
+            background: #f0f2f5;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .debug-btn:hover {
+            color: #1677ff;
+            border-color: #1677ff;
+        }
+        .debug-title {
+            font-size: 12px;
+            color: #999;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        /* ---------------- 本次新增需求追加的 CSS ---------------- */
+
+        /* 新增需求1：回到底部悬浮按钮 */
+        .scroll-bottom-btn {
+            position: absolute;
+            bottom: 120px; /* 位于输入框之上 */
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: 20px;
+            padding: 6px 14px;
+            display: none; /* 默认隐藏 */
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--primary-blue);
+            cursor: pointer;
+            z-index: 45;
+            border: 1px solid #eee;
+        }
+        .scroll-bottom-btn:hover {
+            background: #f0f2f5;
+        }
+
+        /* 新增需求2：复制右侧更多菜单样式 */
+        .action-more-menu {
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            border-radius: 6px;
+            padding: 4px 0;
+            margin-bottom: 5px;
+            z-index: 100;
+            min-width: 90px;
+            border: 1px solid #eee;
+        }
+        .more-menu-item {
+            padding: 8px 12px;
+            color: #333;
+            cursor: pointer;
+            text-align: center;
+            font-size: 13px;
+        }
+        .more-menu-item:hover {
+            background: #f0f2f5;
+            color: var(--primary-blue);
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 需求5：恢复侧边栏按钮 -->
+    <div id="restore-sidebar-btn" class="sidebar-restore-btn" onclick="toggleSidebar()" title="展开菜单">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </div>
+
+    <!-- 左侧菜单 -->
+    <aside class="sidebar" id="sidebar">
+        <!-- 需求5：折叠按钮 -->
+        <div class="sidebar-toggle-btn" onclick="toggleSidebar()" title="收起菜单">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </div>
+
+        <div class="sidebar-title">页面</div>
+        <div class="menu-item active" onclick="switchView('web')">Web 登录</div>
+        <!-- 新增App登录入口 -->
+        <div class="menu-item" onclick="switchView('app-login')">App登录</div>
+        
+        <!-- 修改：点击打开同级目录的xcx.html -->
+        <div class="menu-item" onclick="window.location.href='xcx.html'">小程序</div>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        
+        <!-- 微信登录模拟调试面板 (新增) -->
+        <div id="wechat-debug-controls" class="debug-controls">
+            <div class="debug-title">状态控制</div>
+            <button class="debug-btn" onclick="handleWechatDebug('bound')">已绑手机</button>
+            <button class="debug-btn" onclick="handleWechatDebug('unbound')">未绑手机</button>
+        </div>
+
+        <!-- Web 微信登录模拟调试面板 (本次新增) -->
+        <div id="web-wechat-debug-controls" class="debug-controls" style="margin-left: 350px;">
+            <div class="debug-title">状态控制</div>
+            <button class="debug-btn" onclick="handleWebWechatDebug('bound')">已绑手机</button>
+            <button class="debug-btn" onclick="handleWebWechatDebug('unbound')">未绑手机</button>
+        </div>
+
+        <!-- Web 登录视图 -->
+        <div id="view-web" class="view-container active">
+            <div id="main-login-modal" class="login-modal">
+                <div class="close-modal-btn" title="关闭">×</div>
+                <div class="modal-header">
+                    <div class="decoration-circle c1"></div>
+                    <div class="decoration-circle c2"></div>
+                    <div class="decoration-circle c3"></div>
+                    <div class="brand-container">
+                        <div class="brand-logo">🛡️</div>
+                        <div class="brand-text">欢迎使用木瓜法宝</div>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <div class="login-section">
+                        <div id="form-code" class="form-content">
+                            <div class="form-group"><div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div></div>
+                            <div class="form-group"><div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div></div>
+                        </div>
+                        <div id="form-password" class="form-content" style="display: none;">
+                            <div class="form-group"><div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入用户名/手机号"></div></div>
+                            <div class="form-group"><div class="input-wrapper"><input type="password" class="input-field" placeholder="请输入密码"></div></div>
+                        </div>
+                        <div class="above-btn-area">
+                            <div id="links-block" class="password-links" style="display: none;">
+                                <div class="action-link" onclick="showSubView('reset')">忘记密码</div>
+                                <div class="action-link" onclick="showSubView('register')">注册账号</div>
+                            </div>
+                        </div>
+                        <button class="submit-btn" id="main-submit-btn">登录</button>
+                        <div class="switch-mode-btn" onclick="toggleLoginMode()" id="switch-text">密码登录</div>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="login-section">
+                        <div class="qr-container"><div class="qr-code"></div></div>
+                        <!-- Web 微信扫码登录 添加了id和cursor样式以便响应三击 -->
+                        <div class="wechat-label" id="web-wechat-btn" style="cursor: pointer; user-select: none;"><svg class="wechat-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M8.5,14.5c0.1-0.5,0.1-1,0.3-1.5c1.4,1.1,3.4,1.6,5.4,1.1c0.3,0.3,0.6,0.5,1,0.7 c-1.2,1.3-3.1,1.9-4.9,1.6c-0.6,0.3-1.3,0.5-2,0.6c-0.1,0-0.1-0.1-0.1-0.1c0.1-0.3,0.3-0.6,0.4-0.8 C7.5,15.8,6.8,15.2,6.5,14.5z M13.5,3.3c-4,0-7.2,2.6-7.2,5.9c0,1.9,1.1,3.6,2.8,4.7c-0.1,0.5-0.4,1.4-0.9,1.9 c-0.1,0.1,0,0.2,0.1,0.2c0.6,0,2.1-0.2,3.3-1c0.6,0.2,1.2,0.2,1.9,0.2c4,0,7.2-2.6,7.2-5.9C20.7,5.9,17.5,3.3,13.5,3.3z M10.4,8.1 c-0.5,0-0.9-0.4-0.9-0.9c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C11.3,7.7,10.9,8.1,10.4,8.1z M16.6,8.1c-0.5,0-0.9-0.4-0.9-0.9 c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C17.5,7.7,17.1,8.1,16.6,8.1z M18.1,14.3c-0.1,0.3-0.2,0.8-0.6,1.1 c0.7,0.5,1.6,0.6,2,0.6c0,0,0.1-0.1,0-0.1c-0.3-0.3-0.5-0.9-0.6-1.2c1-0.7,1.6-1.7,1.6-2.8c0-2.2-2.2-3.9-4.8-3.9 c-2.7,0-4.8,1.8-4.8,3.9C10.9,13.7,14.1,15.6,18.1,14.3z M14.3,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6 S14.6,11.2,14.3,11.2z M18.5,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6S18.8,11.2,18.5,11.2z"/></svg>微信扫码登录</div>
+                    </div>
+                </div>
+                <div class="modal-footer-agreement">
+                    <label class="agreement-label">
+                        <input type="checkbox" id="main-agreement-check" class="agreement-checkbox">
+                        <span class="agreement-text" id="footer-agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a> 新用户将自动注册</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div id="sub-auth-modal" class="sub-auth-modal" style="display: none;">
+                <div class="close-modal-btn" title="关闭" onclick="hideSubView()">×</div>
+                <div class="sub-modal-header">
+                    <div class="back-btn" onclick="hideSubView()"><span class="back-icon">&lt;</span> 返回</div>
+                    <div id="sub-modal-title" class="sub-modal-title">注册账号</div>
+                </div>
+                <div class="form-content" style="width: 100%; max-width: 100%;">
+                    <div class="form-group"><div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div></div>
+                    <div class="form-group"><div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div></div>
+                    <div class="form-group"><div class="input-wrapper"><input type="password" class="input-field" placeholder="8-20位,数字/大/小写字母/字符至少3种"></div></div>
+                    <div class="form-group"><div class="input-wrapper"><input type="password" class="input-field" placeholder="再次输入密码"></div></div>
+                    <button class="submit-btn" id="sub-submit-btn">提交</button>
+                    <div id="sub-agreement-area" class="sub-agreement-area">
+                        <label class="agreement-label" style="justify-content: center;">
+                            <input type="checkbox" id="sub-agreement-check" class="agreement-checkbox">
+                            <span class="agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App登录 (运营商一键登录) -->
+        <div id="view-app-login" class="view-container">
+            <div class="app-view-bg">
+                <div class="phone-simulator">
+                    <!-- 需求2：在APP登录页面显示底部抽屉时，抽屉下层显示遮罩 -->
+                    <div id="overlay-app-login" class="auth-drawer-overlay"></div>
+
+                    <div id="app-login-toast" class="app-toast"></div>
+                    <div class="phone-status-bar"><span>9:41</span><span>5G</span></div>
+                    
+                    <!-- 需求1：左上角去掉返回及返回icon -->
+                    <div class="mini-app-header" style="background: transparent;">
+                         <!-- 无返回按钮 -->
+                    </div>
+                    
+                    <div class="phone-content app-page-view" style="padding-top: 20px;">
+                        <div class="app-logo-placeholder" style="width: 80px; height: 80px; margin-bottom: 10px;">logo</div>
+                        <div class="app-name" style="font-size: 18px; margin-bottom: 20px;">木瓜法宝</div>
+                        
+                        <div class="current-phone-display">
+                            138 **** 8888 
+                            <!-- 需求2：点击去验证码登录页 -->
+                            <span class="change-num-btn" onclick="switchToAppCodeLogin()">换号</span>
+                        </div>
+                        <div class="operator-tag">中国移动提供认证服务</div>
+
+                        <div class="app-btns-container" style="margin-top: 20px;">
+                            <button class="app-btn-primary" onclick="handleOneClickLogin()">本机号码一键登录</button>
+                            <!-- 需求3：一键登录协议区域移动到按钮下方 -->
+                            <div class="app-agreement-area" style="margin-top: 15px; margin-bottom: 0;">
+                                 <label class="agreement-label">
+                                    <!-- 需求4：保持默认未勾选 -->
+                                    <input type="checkbox" id="app-login-agreement-check" class="agreement-checkbox">
+                                    <!-- 需求：增加《中国移动认证服务协议》 -->
+                                    <span class="agreement-text">我已阅读并同意 <a href="#">《服务条款》</a>、<a href="#">《隐私政策》</a> 和 <a href="#">《中国移动认证服务协议》</a></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 底部其他登录方式 -->
+                        <div class="other-login-section" style="margin-top: auto; padding-bottom: 30px;">
+                            <div class="other-login-title">其他登录方式</div>
+                            <div class="login-methods-grid">
+                                <!-- 需求2：点击去验证码登录页 -->
+                                <div class="method-item" onclick="switchToAppCodeLogin()">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="method-name">验证码登录</span>
+                                </div>
+                                <!-- 需求2：点击去密码登录页 -->
+                                <div class="method-item" onclick="switchToAppPasswordLogin()">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="method-name">密码登录</span>
+                                </div>
+                                <div class="method-item" onclick="handleWechatLogin()">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" style="fill: #07c160;" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8.5,14.5c0.1-0.5,0.1-1,0.3-1.5c1.4,1.1,3.4,1.6,5.4,1.1c0.3,0.3,0.6,0.5,1,0.7 c-1.2,1.3-3.1,1.9-4.9,1.6c-0.6,0.3-1.3,0.5-2,0.6c-0.1,0-0.1-0.1-0.1-0.1c0.1-0.3,0.3-0.6,0.4-0.8 C7.5,15.8,6.8,15.2,6.5,14.5z M13.5,3.3c-4,0-7.2,2.6-7.2,5.9c0,1.9,1.1,3.6,2.8,4.7c-0.1,0.5-0.4,1.4-0.9,1.9 c-0.1,0.1,0,0.2,0.1,0.2c0.6,0,2.1-0.2,3.3-1c0.6,0.2,1.2,0.2,1.9,0.2c4,0,7.2-2.6,7.2-5.9C20.7,5.9,17.5,3.3,13.5,3.3z M10.4,8.1 c-0.5,0-0.9-0.4-0.9-0.9c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C11.3,7.7,10.9,8.1,10.4,8.1z M16.6,8.1c-0.5,0-0.9-0.4-0.9-0.9 c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C17.5,7.7,17.1,8.1,16.6,8.1z M18.1,14.3c-0.1,0.3-0.2,0.8-0.6,1.1 c0.7,0.5,1.6,0.6,2,0.6c0,0,0.1-0.1,0-0.1c-0.3-0.3-0.5-0.9-0.6-1.2c1-0.7,1.6-1.7,1.6-2.8c0-2.2-2.2-3.9-4.8-3.9 c-2.7,0-4.8,1.8-4.8,3.9C10.9,13.7,14.1,15.6,18.1,14.3z M14.3,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6 S14.6,11.2,14.3,11.2z M18.5,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6S18.8,11.2,18.5,11.2z"/></svg>
+                                    </div>
+                                    <span class="method-name">微信登录</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 需求6：微信授权专用抽屉 -->
+                        <div id="wechat-phone-drawer" class="wechat-phone-drawer">
+                             <div class="drawer-title">微信授权手机号</div>
+                             <div style="margin-top: 20px;">
+                                 <button class="app-btn-sub" style="width: 150px;" onclick="completeWechatAuth()">授权</button>
+                             </div>
+                        </div>
+
+                        <!-- 新增：绑定手机号抽屉 (复用) -->
+                        <div id="bind-phone-drawer" class="auth-drawer" style="height: 50vh;">
+                            <div class="drawer-title">提示</div>
+                            <div class="drawer-desc">需要绑定手机号后使用</div>
+                            <div class="app-input-form" style="margin-top: 20px; width: 100%;">
+                                <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div>
+                                <div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div>
+                            </div>
+                            <button class="app-btn-primary" onclick="handleBindPhone()" style="margin-top: 20px;">确认绑定</button>
+                        </div>
+
+                    </div>
+                    
+                    <!-- 移动 Context Menu 到最后 -->
+                    <div id="context-menu" class="context-menu">
+                        <ul id="context-menu-list">
+                            <!-- 动态内容 -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 需求5：App验证码/密码登录页 (无胶囊，无分段控制器) -->
+        <div id="view-app-form-login" class="view-container">
+            <div class="app-view-bg">
+                <div class="phone-simulator">
+                    <!-- 需求2：在APP登录页面显示底部抽屉时，抽屉下层显示遮罩 -->
+                    <div id="overlay-app-form-login" class="auth-drawer-overlay"></div>
+
+                    <div id="app-form-toast" class="app-toast"></div>
+                    <div class="phone-status-bar"><span>9:41</span><span>5G</span></div>
+                    
+                    <!-- 需求1：左上角去掉返回及返回icon -->
+                    <div class="mini-app-header" style="background: transparent;">
+                         <!-- 无返回按钮 -->
+                    </div>
+
+                    <div class="phone-content" style="padding-top: 20px;">
+                        
+                        <!-- 需求2：上方不需要显示分段控制器 (已删除 .app-login-tabs) -->
+
+                        <!-- 验证码登录表单 -->
+                        <div id="app-form-group-code" class="login-form-group active">
+                            <div class="app-name" style="font-size: 24px; margin-bottom: 30px; margin-top: 10px; align-self: flex-start; width: 100%; font-weight: 600;">验证码登录</div>
+                            <div class="app-input-form" style="margin-top: 0;">
+                                <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div>
+                                <div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div>
+                            </div>
+                        </div>
+
+                        <!-- 密码登录表单 -->
+                        <div id="app-form-group-password" class="login-form-group">
+                            <div class="app-name" style="font-size: 24px; margin-bottom: 30px; margin-top: 10px; align-self: flex-start; width: 100%; font-weight: 600;">密码登录</div>
+                            <div class="app-input-form" style="margin-top: 0;">
+                                <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入用户名/手机号"></div>
+                                <div class="input-wrapper"><input type="password" class="input-field" placeholder="请输入密码"></div>
+                            </div>
+                            <!-- 需求2：App密码登录页忘记密码与立即注册 -->
+                            <div style="width: 100%; display: flex; justify-content: space-between; font-size: 14px; margin-top: 15px; color: #1890ff;">
+                                <span style="cursor: pointer;" onclick="showToast('忘记密码')">忘记密码</span>
+                                <span style="cursor: pointer;" onclick="showToast('立即注册')">立即注册</span>
+                            </div>
+                        </div>
+
+                        <div class="app-btns-container" style="margin-top: 40px;">
+                            <button class="app-btn-primary" onclick="handleAppInputLogin()">登录</button>
+                            <div class="app-agreement-area" style="margin-top: 20px;">
+                                <label class="agreement-label">
+                                    <!-- 需求4：移除checked属性 -->
+                                    <input type="checkbox" id="app-form-agreement-check" class="agreement-checkbox">
+                                    <!-- 修改1：增加 id 以便动态修改内容，默认加上“新用户将自动注册” -->
+                                    <span class="agreement-text" id="app-form-agreement-text">我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>，新用户将自动注册</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- 需求2：底部其他登录方式动态切换 -->
+                        <div class="other-login-section" style="margin-top: auto; padding-bottom: 30px;">
+                            <div class="other-login-title">其他登录方式</div>
+                            <div class="login-methods-grid">
+                                <!-- 一键登录 (常驻) -->
+                                <div class="method-item" onclick="switchView('app-login')">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M17 1.01L7 1c-1.1 0-2 .9-2 2v18c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2V3c0-1.1-.9-1.99-2-1.99zM17 19H7V5h10v14z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="method-name">一键登录</span>
+                                </div>
+                                <!-- 验证码登录 (在使用密码登录时显示) -->
+                                <div class="method-item" id="app-form-bottom-code" onclick="switchAppFormMode('code')" style="display: none;">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="method-name">验证码登录</span>
+                                </div>
+                                <!-- 密码登录 (在使用验证码登录时显示) -->
+                                <div class="method-item" id="app-form-bottom-password" onclick="switchAppFormMode('password')">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                                        </svg>
+                                    </div>
+                                    <span class="method-name">密码登录</span>
+                                </div>
+                                <!-- 微信登录 (常驻) -->
+                                <div class="method-item" onclick="handleWechatLogin()">
+                                    <div class="method-icon-circle">
+                                        <svg class="method-icon" style="fill: #07c160;" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M8.5,14.5c0.1-0.5,0.1-1,0.3-1.5c1.4,1.1,3.4,1.6,5.4,1.1c0.3,0.3,0.6,0.5,1,0.7 c-1.2,1.3-3.1,1.9-4.9,1.6c-0.6,0.3-1.3,0.5-2,0.6c-0.1,0-0.1-0.1-0.1-0.1c0.1-0.3,0.3-0.6,0.4-0.8 C7.5,15.8,6.8,15.2,6.5,14.5z M13.5,3.3c-4,0-7.2,2.6-7.2,5.9c0,1.9,1.1,3.6,2.8,4.7c-0.1,0.5-0.4,1.4-0.9,1.9 c-0.1,0.1,0,0.2,0.1,0.2c0.6,0,2.1-0.2,3.3-1c0.6,0.2,1.2,0.2,1.9,0.2c4,0,7.2-2.6,7.2-5.9C20.7,5.9,17.5,3.3,13.5,3.3z M10.4,8.1 c-0.5,0-0.9-0.4-0.9-0.9c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C11.3,7.7,10.9,8.1,10.4,8.1z M16.6,8.1c-0.5,0-0.9-0.4-0.9-0.9 c0-0.5,0.4-0.9,0.9-0.9c0.5,0,0.9,0.4,0.9,0.9C17.5,7.7,17.1,8.1,16.6,8.1z M18.1,14.3c-0.1,0.3-0.2,0.8-0.6,1.1 c0.7,0.5,1.6,0.6,2,0.6c0,0,0.1-0.1,0-0.1c-0.3-0.3-0.5-0.9-0.6-1.2c1-0.7,1.6-1.7,1.6-2.8c0-2.2-2.2-3.9-4.8-3.9 c-2.7,0-4.8,1.8-4.8,3.9C10.9,13.7,14.1,15.6,18.1,14.3z M14.3,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6 S14.6,11.2,14.3,11.2z M18.5,11.2c-0.3,0-0.6-0.3-0.6-0.6s0.3-0.6,0.6-0.6c0.3,0,0.6,0.3,0.6,0.6S18.8,11.2,18.5,11.2z"/></svg>
+                                    </div>
+                                    <span class="method-name">微信登录</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 新增：绑定手机号抽屉 (复用) -->
+                        <div id="bind-phone-drawer-form" class="auth-drawer" style="height: 50vh;">
+                            <div class="drawer-title">提示</div>
+                            <div class="drawer-desc">需要绑定手机号后使用</div>
+                            <div class="app-input-form" style="margin-top: 20px; width: 100%;">
+                                <div class="input-wrapper"><input type="tel" class="input-field" placeholder="请输入手机号"></div>
+                                <div class="input-wrapper"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div>
+                            </div>
+                            <button class="app-btn-primary" onclick="handleBindPhone()" style="margin-top: 20px;">确认绑定</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="custom-confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="confirm-box">
+            <p class="confirm-text" id="custom-confirm-text">
+                注册/登录即代表您已同意：<br>
+                <a href="#">《服务协议》</a> 和 <a href="#">《隐私政策》</a>
+            </p>
+            <div class="confirm-btns">
+                <button class="confirm-btn btn-cancel" onclick="closeCustomModal()">取消</button>
+                <button class="confirm-btn btn-confirm" onclick="confirmAgreement()">同意并继续</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 需求2：更多功能提示弹窗 -->
+    <div id="more-func-modal" class="modal-overlay" style="display: none;">
+        <div class="confirm-box">
+             <h3 style="margin-bottom: 12px; font-size: 17px; font-weight: 600;">提示</h3>
+            <p class="confirm-text" style="color: #666;">
+                合同审查、案情分析、法律文书等功能暂仅支持在网页端和APP端使用
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="app-btn-sub" style="height: 40px; margin:0;" onclick="copyLink()">复制网页链接</button>
+                <button class="app-btn-sub" style="height: 40px; margin:0;" onclick="copyAppName()">复制APP名称</button>
+                <button class="app-btn-sub" style="height: 40px; margin:0; border:none; color:#999;" onclick="closeMoreFuncModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Web 微信登录未绑手机号弹窗 (本次新增) -->
+    <div id="web-bind-phone-modal" class="modal-overlay" style="display: none;">
+        <div class="confirm-box" style="width: 360px;">
+            <h3 style="margin-bottom: 12px; font-size: 17px; font-weight: 600;">提示</h3>
+            <p class="confirm-text" style="color: #666; margin-bottom: 24px;">
+                需要绑定手机号后使用
+            </p>
+            <div class="form-content" style="margin: 0 auto; width: 100%; max-width: 100%;">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <div class="input-wrapper" style="background: #fff;"><input type="tel" class="input-field" placeholder="请输入手机号"></div>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <div class="input-wrapper" style="background: #fff;"><input type="text" class="input-field" placeholder="请输入验证码"><button class="verify-btn">发送验证码</button></div>
+                </div>
+            </div>
+            <div class="confirm-btns">
+                <button class="confirm-btn btn-cancel" onclick="closeWebBindPhoneModal()">取消</button>
+                <button class="confirm-btn btn-confirm" onclick="confirmWebBindPhone()">确认绑定</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'code';
+        let pendingActionSource = null;
+        let isFirstConsultClick = true; // 此变量实际上表示“是否未登录”
+
+        // 需求4：初始化检查引导层
+        function checkLoginOverlay() {
+            const overlay = document.getElementById('login-guide-overlay');
+            if (overlay) {
+                if (isFirstConsultClick) {
+                    overlay.style.display = 'flex';
+                } else {
+                    overlay.style.display = 'none';
+                }
+            }
+        }
+        
+        // 需求5：侧边栏切换
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const restoreBtn = document.getElementById('restore-sidebar-btn');
+            
+            sidebar.classList.toggle('collapsed');
+            
+            if (sidebar.classList.contains('collapsed')) {
+                restoreBtn.style.display = 'flex';
+            } else {
+                restoreBtn.style.display = 'none';
+            }
+        }
+
+        // 需求2：更多功能相关逻辑
+        function showMoreFunctions() {
+            document.getElementById('more-func-modal').style.display = 'flex';
+        }
+        function closeMoreFuncModal() {
+            document.getElementById('more-func-modal').style.display = 'none';
+        }
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href).then(() => showToast('已复制网页链接'));
+            closeMoreFuncModal();
+        }
+        function copyAppName() {
+            navigator.clipboard.writeText('木瓜法宝').then(() => showToast('已复制：木瓜法宝'));
+            closeMoreFuncModal();
+        }
+        
+        // 我的权益点击事件
+        function handleMyBenefitsClick() {
+            if (isFirstConsultClick) {
+                // 未登录状态，调起登录引导
+                handleLoginGuideClick();
+            } else {
+                // 已登录，进入静态页面
+                switchView('app-benefits');
+            }
+        }
+
+        function switchView(viewName) {
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach((item, index) => {
+                if ((viewName === 'web' && index === 0) || 
+                    (viewName === 'app-login' && index === 1) || 
+                    (viewName === 'app-home' && index === 2)) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+            document.querySelectorAll('.view-container').forEach(el => el.classList.remove('active'));
+            let targetId = 'view-' + viewName;
+            document.getElementById(targetId).classList.add('active');
+            
+            // 切换页面时隐藏调试控件
+            document.getElementById('wechat-debug-controls').style.display = 'none';
+            // 隐藏本次新增的Web版调试控件
+            if(document.getElementById('web-wechat-debug-controls')) {
+                document.getElementById('web-wechat-debug-controls').style.display = 'none';
+            }
+
+            const mainContent = document.querySelector('.main-content');
+            if (viewName === 'app' || viewName === 'app-home' || viewName === 'app-login' || viewName === 'app-form-login' || viewName === 'app-benefits') {
+                mainContent.style.backgroundImage = 'none';
+                mainContent.style.backgroundColor = '#ffffff';
+                if (viewName === 'app') backToAppHome();
+                
+                // 切换到 APP 视图时检查引导层
+                if (viewName === 'app-home') {
+                    checkLoginOverlay();
+                }
+            } else {
+                mainContent.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6))';
+            }
+        }
+        
+        function toggleLoginMode() {
+            const formCode = document.getElementById('form-code');
+            const formPass = document.getElementById('form-password');
+            const linksBlock = document.getElementById('links-block');
+            const switchText = document.getElementById('switch-text');
+            const agreementText = document.getElementById('footer-agreement-text');
+            if (currentMode === 'code') {
+                currentMode = 'password';
+                formCode.style.display = 'none';
+                formPass.style.display = 'block';
+                linksBlock.style.display = 'flex';
+                switchText.innerText = '短信登录';
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>';
+            } else {
+                currentMode = 'code';
+                formCode.style.display = 'block';
+                formPass.style.display = 'none';
+                linksBlock.style.display = 'none';
+                switchText.innerText = '密码登录';
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a> 新用户将自动注册';
+            }
+        }
+        function showSubView(type) {
+            document.getElementById('main-login-modal').style.display = 'none';
+            const subModal = document.getElementById('sub-auth-modal');
+            const titleEl = document.getElementById('sub-modal-title');
+            const agreementArea = document.getElementById('sub-agreement-area');
+            subModal.style.display = 'flex';
+            subModal.dataset.type = type;
+            if (type === 'register') {
+                titleEl.innerText = '注册账号';
+                agreementArea.style.display = 'block'; 
+            } else {
+                titleEl.innerText = '忘记密码';
+                agreementArea.style.display = 'none'; 
+            }
+        }
+        function hideSubView() {
+            document.getElementById('sub-auth-modal').style.display = 'none';
+            document.getElementById('main-login-modal').style.display = 'flex';
+        }
+        const mainSubmitBtn = document.getElementById('main-submit-btn');
+        const subSubmitBtn = document.getElementById('sub-submit-btn');
+        const mainCheckbox = document.getElementById('main-agreement-check');
+        const subCheckbox = document.getElementById('sub-agreement-check');
+        const appMainBtn = document.getElementById('app-main-btn');
+        const appSubBtn = document.getElementById('app-sub-btn');
+        const appCheckbox = document.getElementById('app-agreement-check');
+        const appInputLoginBtn = document.getElementById('app-input-login-btn');
+        const appInputCheckbox = document.getElementById('app-input-agreement-check');
+        const customModal = document.getElementById('custom-confirm-modal');
+        
+        const drawerSubBtn = document.getElementById('drawer-sub-btn');
+        const drawerCheckbox = document.getElementById('drawer-agreement-check');
+        
+        // App Login new checkbox
+        const appLoginCheckbox = document.getElementById('app-login-agreement-check');
+        // App Form Login new checkbox
+        const appFormCheckbox = document.getElementById('app-form-agreement-check');
+
+        if(mainSubmitBtn) mainSubmitBtn.addEventListener('click', function() { if (!mainCheckbox.checked) { pendingActionSource = 'main'; openCustomModal(); } else { doLoginSuccess(); } });
+        if(subSubmitBtn) subSubmitBtn.addEventListener('click', function() { const currentType = document.getElementById('sub-auth-modal').dataset.type; if (currentType === 'register') { if (!subCheckbox.checked) { pendingActionSource = 'sub'; openCustomModal(); } else { doLoginSuccess(); } } else { alert('提交成功'); } });
+        if(appMainBtn) appMainBtn.addEventListener('click', function() { if (!appCheckbox.checked) { pendingActionSource = 'app-main'; openCustomModal(); } else { showToast('微信授权手机号'); } });
+        
+        // 此处的逻辑为小程序首页的输入登录
+        if(appSubBtn) appSubBtn.addEventListener('click', function() { if (!appCheckbox.checked) { pendingActionSource = 'app-sub'; openCustomModal(); } else { switchToAppInputPage(); } });
+        if(appInputLoginBtn) appInputLoginBtn.addEventListener('click', function() { if (!appInputCheckbox.checked) { pendingActionSource = 'app-input-login'; openCustomModal(); } else { doLoginSuccess(); } });
+        
+        if(drawerSubBtn) drawerSubBtn.addEventListener('click', function() {
+            if (!drawerCheckbox.checked) {
+                pendingActionSource = 'drawer-sub';
+                openCustomModal();
+            } else {
+                closeAuthDrawer();
+                switchView('app'); 
+                switchToAppInputPage(); 
+            }
+        });
+
+        function openCustomModal() { 
+            const confirmTextEl = document.getElementById('custom-confirm-text');
+            if (confirmTextEl) {
+                if (pendingActionSource === 'app-login-oneclick') {
+                    confirmTextEl.innerHTML = '注册/登录即代表您已同意：<br><a href="#">《服务协议》</a>、<a href="#">《隐私政策》</a> 和 <a href="#">《中国移动认证服务协议》</a>';
+                } else {
+                    confirmTextEl.innerHTML = '注册/登录即代表您已同意：<br><a href="#">《服务协议》</a> 和 <a href="#">《隐私政策》</a>';
+                }
+            }
+            customModal.style.display = 'flex'; 
+        }
+        function closeCustomModal() { customModal.style.display = 'none'; pendingActionSource = null; }
+        
+        function confirmAgreement() {
+            const source = pendingActionSource;
+            if (source === 'main') mainCheckbox.checked = true;
+            if (source === 'sub') subCheckbox.checked = true;
+            if (source === 'app-main' || source === 'app-sub') appCheckbox.checked = true;
+            if (source === 'app-input-login') appInputCheckbox.checked = true;
+            if (source === 'drawer-main' || source === 'drawer-sub') drawerCheckbox.checked = true;
+            if (source === 'app-login-oneclick') appLoginCheckbox.checked = true;
+            if (source === 'app-login-wechat') appLoginCheckbox.checked = true;
+            if (source === 'app-form-login') appFormCheckbox.checked = true;
+            if (source === 'app-form-login-wechat') appFormCheckbox.checked = true;
+
+            closeCustomModal();
+            setTimeout(() => {
+                if (source === 'app-sub') switchToAppInputPage();
+                else if (source === 'app-main') showToast('微信授权手机号');
+                else if (source === 'app-input-login') doLoginSuccess();
+                else if (source === 'drawer-main') {
+                    showWechatPhoneDrawer();
+                }
+                else if (source === 'drawer-sub') {
+                    closeAuthDrawer();
+                    switchView('app');
+                    switchToAppInputPage();
+                }
+                else if (source === 'app-login-oneclick') doLoginSuccess();
+                else if (source === 'app-login-wechat' || source === 'app-form-login-wechat') {
+                    // 修改：APP登录页面微信登录时，显示调试面板
+                    startWechatDebugFlow();
+                }
+                else if (source === 'app-form-login') doLoginSuccess();
+                else doLoginSuccess();
+            }, 100);
+        }
+        function switchToAppInputPage() { document.getElementById('app-home-view').style.display = 'none'; document.getElementById('app-login-input-view').style.display = 'flex'; }
+        
+        function handleAppBack() { 
+            // 切换回小程序首页
+            switchView('app-home');
+            
+            // 显示底部授权弹窗
+            const drawer = document.getElementById('auth-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            if (drawer) drawer.classList.add('active');
+            if (overlay) overlay.classList.add('active');
+            
+            // 重置登录页状态 (为了下次进入时状态正确)
+            backToAppHome(); 
+        }
+        
+        // 处理运营商一键登录
+        function handleOneClickLogin() {
+            if (!appLoginCheckbox.checked) {
+                pendingActionSource = 'app-login-oneclick';
+                openCustomModal();
+            } else {
+                doLoginSuccess();
+            }
+        }
+
+        // 修改2：处理微信登录（校验协议），支持不同页面来源
+        function handleWechatLogin() {
+            let isChecked = false;
+            let source = 'app-login-wechat';
+
+            // Check which view is active
+            if (document.getElementById('view-app-form-login').classList.contains('active')) {
+                isChecked = appFormCheckbox.checked;
+                source = 'app-form-login-wechat';
+            } else {
+                // Default to app-login view (One click login)
+                isChecked = appLoginCheckbox.checked;
+                source = 'app-login-wechat';
+            }
+
+            if (!isChecked) {
+                pendingActionSource = source;
+                openCustomModal();
+            } else {
+                // APP 登录页面时，启动调试流程
+                startWechatDebugFlow();
+            }
+        }
+
+        // 新增：启动微信登录调试流程
+        function startWechatDebugFlow() {
+            // 需求2：“正在拉起微信授权..”文字改为“跳转到微信APP...”
+            showToast("跳转到微信APP...");
+            document.getElementById('wechat-debug-controls').style.display = 'flex';
+        }
+
+        // 新增：处理调试面板点击
+        function handleWechatDebug(type) {
+            if (type === 'bound') {
+                doLoginSuccess();
+            } else if (type === 'unbound') {
+                // 需求2：点击“未绑手机号”时，在APP登录页面显示底部抽屉，抽屉下层显示遮罩，不要切换页面
+                let drawer, overlay;
+                
+                if (document.getElementById('view-app-login').classList.contains('active')) {
+                    drawer = document.getElementById('bind-phone-drawer');
+                    overlay = document.getElementById('overlay-app-login');
+                } else if (document.getElementById('view-app-form-login').classList.contains('active')) {
+                    drawer = document.getElementById('bind-phone-drawer-form');
+                    overlay = document.getElementById('overlay-app-form-login');
+                }
+                
+                if (drawer && overlay) {
+                    drawer.classList.add('active');
+                    overlay.classList.add('active');
+                }
+            }
+        }
+
+        // 新增：处理绑定手机号
+        function handleBindPhone() {
+            // 关闭抽屉
+            closeAuthDrawer();
+            
+            // 登录成功
+            doLoginSuccess();
+        }
+
+        // 修改：封装跳转逻辑，根据登录状态显示不同弹窗 (保留小程序逻辑)
+        function navigateToAppHomeAuth() {
+            switchView('app-home');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            
+            if (isFirstConsultClick) { 
+                // 小程序未登录，显示第一个弹窗（申请获取并验证您的手机号）
+                const drawer = document.getElementById('auth-drawer');
+                if (drawer) drawer.classList.add('active');
+                if (overlay) overlay.classList.add('active');
+            } else {
+                // 小程序已登录，显示允许登录抽屉
+                const allowDrawer = document.getElementById('allow-login-drawer');
+                if (allowDrawer) allowDrawer.classList.add('active');
+                if (overlay) overlay.classList.add('active');
+            }
+        }
+
+        // 修改：处理允许登录逻辑
+        function handleAllowLoginAction() {
+            const allowDrawer = document.getElementById('allow-login-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            if (allowDrawer) allowDrawer.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+            showToast('登录成功');
+        }
+        
+        // 切换小程序登录的分段控制器
+        function switchMiniLoginTab(mode, el) {
+            const container = document.getElementById('app-login-input-view');
+            container.querySelectorAll('.app-login-tab').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            
+            container.querySelectorAll('.login-form-group').forEach(g => g.classList.remove('active'));
+            document.getElementById('mini-form-group-' + mode).classList.add('active');
+
+            // 修改1：小程序登录页面验证码模式显示“新用户将自动注册”
+            const agreementText = document.getElementById('mini-agreement-text');
+            if (mode === 'code') {
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>，新用户将自动注册';
+            } else {
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>';
+            }
+        }
+
+        // ----------------- 新增/修改：动态切换App表单及底部项 -----------------
+        function switchAppFormMode(mode) {
+            // 控制表单显隐
+            document.querySelectorAll('#view-app-form-login .login-form-group').forEach(g => g.classList.remove('active'));
+            document.getElementById('app-form-group-' + mode).classList.add('active');
+            
+            // 控制底部可选项动态显隐
+            const bottomCode = document.getElementById('app-form-bottom-code');
+            const bottomPassword = document.getElementById('app-form-bottom-password');
+            
+            // 修改1：APP登录页面验证码模式显示“新用户将自动注册”
+            const agreementText = document.getElementById('app-form-agreement-text');
+
+            if (mode === 'code') {
+                bottomCode.style.display = 'none';
+                bottomPassword.style.display = 'flex';
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>，新用户将自动注册';
+            } else {
+                bottomCode.style.display = 'flex';
+                bottomPassword.style.display = 'none';
+                agreementText.innerHTML = '我已阅读并同意 <a href="#">《服务条款》</a> 和 <a href="#">《隐私政策》</a>';
+            }
+        }
+
+        function switchToAppCodeLogin() {
+            switchView('app-form-login');
+            switchAppFormMode('code');
+        }
+
+        function switchToAppPasswordLogin() {
+            switchView('app-form-login');
+            switchAppFormMode('password');
+        }
+        // ----------------------------------------------------------------------
+
+        // 处理App验证码/密码登录提交
+        function handleAppInputLogin() {
+            if (!appFormCheckbox.checked) {
+                pendingActionSource = 'app-form-login';
+                openCustomModal();
+            } else {
+                doLoginSuccess();
+            }
+        }
+
+        function backToAppHome() { 
+            const homeView = document.getElementById('app-home-view');
+            const inputView = document.getElementById('app-login-input-view');
+            const check = document.getElementById('app-agreement-check');
+            if (homeView) homeView.style.display = 'flex'; 
+            if (inputView) inputView.style.display = 'none'; 
+            if (check) check.checked = false; 
+        }
+        
+        function doLoginSuccess() {
+            const isAppView = document.getElementById('view-app')?.classList.contains('active');
+            const isConsultView = document.getElementById('view-app-home')?.classList.contains('active');
+            const isAppLoginView = document.getElementById('view-app-login')?.classList.contains('active');
+            const isAppFormLoginView = document.getElementById('view-app-form-login')?.classList.contains('active');
+            
+            // 状态更新
+            isFirstConsultClick = false;
+            checkLoginOverlay();
+
+            if (isAppView || isAppLoginView || isAppFormLoginView) {
+                showToast('登录成功');
+            }
+            else if (isConsultView) { 
+                closeAuthDrawer(); 
+                const wechatPhoneDrawer = document.getElementById('wechat-phone-drawer');
+                if (wechatPhoneDrawer) wechatPhoneDrawer.classList.remove('active'); // 确保关闭手机授权抽屉
+                const toast = document.createElement('div'); toast.className = 'app-toast'; toast.innerText = '登录成功'; toast.style.display = 'block'; document.querySelector('#view-app-home .phone-simulator').appendChild(toast); setTimeout(() => toast.remove(), 3000); 
+            }
+            else alert('登录成功');
+        }
+        
+        function showToast(msg) { 
+            let toast = document.getElementById('app-toast');
+            const isConsultView = document.getElementById('view-app-home')?.classList.contains('active');
+            const isAppLoginView = document.getElementById('view-app-login')?.classList.contains('active');
+            const isAppFormLoginView = document.getElementById('view-app-form-login')?.classList.contains('active');
+            
+            if (isConsultView) {
+                toast = document.getElementById('home-toast');
+            } else if (isAppLoginView) {
+                toast = document.getElementById('app-login-toast');
+            } else if (isAppFormLoginView) {
+                toast = document.getElementById('app-form-toast');
+            }
+            
+            if (toast) {
+                toast.innerText = msg; 
+                toast.style.display = 'block'; 
+                setTimeout(() => { toast.style.display = 'none'; }, 3000); 
+            }
+        }
+
+        const consultInputTrigger = document.getElementById('consult-input-field'); 
+        const authDrawer = document.getElementById('auth-drawer');
+        const authDrawerOverlay = document.getElementById('auth-drawer-overlay');
+        const drawerAuthBtn = document.getElementById('drawer-auth-btn');
+        const virtualKeyboard = document.getElementById('virtual-keyboard');
+        const consultBottomBar = document.getElementById('consult-bottom-bar');
+        const keyboardOverlay = document.getElementById('keyboard-overlay');
+        const consultPageContent = document.getElementById('consult-content-area');
+        const iconVoice = document.getElementById('icon-voice');
+        const iconKeyboard = document.getElementById('icon-keyboard');
+        const iconAttach = document.getElementById('icon-attach');
+        const btnSend = document.getElementById('btn-send');
+        const inputWrapper = document.getElementById('consult-input-wrapper');
+        const btnVoiceHold = document.getElementById('btn-voice-hold');
+        const recordingTip = document.getElementById('recording-tip');
+        const recordingTipText = document.getElementById('recording-tip-text');
+        const chatList = document.getElementById('chat-list');
+        const contextMenu = document.getElementById('context-menu');
+        const contextMenuList = document.getElementById('context-menu-list');
+        const iconStopText = document.getElementById('icon-stop-text');
+        const iconStopVoice = document.getElementById('icon-stop-voice');
+
+        let isVoiceMode = false;
+        let isRecording = false;
+        let recordingStartTime = 0;
+        let startY = 0;
+        let isCanceling = false;
+        let editingMessageNode = null;
+        let contextMenuTarget = null;
+        let replyTimer = null; 
+        let isReplying = false; 
+        let currentReplyNode = null; 
+
+        document.addEventListener('click', function(e) {
+            contextMenu.style.display = 'none';
+            // 追加需求2逻辑：点击页面其他区域隐藏“更多”菜单
+            document.querySelectorAll('.action-more-menu').forEach(m => m.style.display = 'none');
+        });
+        
+        // 需求4：未登录时点击引导框的处理
+        function handleLoginGuideClick() {
+            if (isFirstConsultClick) {
+                if(authDrawer) authDrawer.classList.add('active');
+                if(authDrawerOverlay) authDrawerOverlay.classList.add('active');
+            }
+        }
+
+        if (consultInputTrigger) {
+            consultInputTrigger.addEventListener('click', function(e) {
+                if (isFirstConsultClick) {
+                    if(authDrawer) authDrawer.classList.add('active');
+                    if(authDrawerOverlay) authDrawerOverlay.classList.add('active');
+                    consultInputTrigger.blur();
+                } else {
+                    showKeyboard();
+                }
+            });
+
+            consultInputTrigger.addEventListener('input', function() {
+                updateInputHeight(this);
+                toggleIcons(this.value);
+            });
+        }
+
+        if (btnSend) {
+            btnSend.addEventListener('click', function() {
+                const text = consultInputTrigger.value.trim();
+                if (text) {
+                    if (editingMessageNode) {
+                        editingMessageNode.innerText = text;
+                        editingMessageNode.classList.remove('voice'); 
+                        editingMessageNode.classList.add('text-user');
+                        updateLatestMessageStyle(editingMessageNode);
+                        
+                        let nextSibling = editingMessageNode.nextElementSibling;
+                        if (nextSibling && nextSibling.classList.contains('ai-msg')) {
+                            nextSibling.remove();
+                        }
+                        
+                        editingMessageNode = null;
+                        setTimeout(simulateReply, 500);
+                    } else {
+                        const msgNode = sendMessage(text, 'text-user');
+                        updateLatestMessageStyle(msgNode);
+                        setTimeout(simulateReply, 500);
+                    }
+
+                    consultInputTrigger.value = '';
+                    updateInputHeight(consultInputTrigger);
+                    toggleIcons('');
+                    
+                    if (!isVoiceMode) {
+                        iconVoice.classList.remove('hidden');
+                    }
+                    
+                    const logoArea = document.getElementById('consult-logo-area');
+                    if(logoArea) logoArea.style.display = 'none';
+                    
+                    hideKeyboard();
+                }
+            });
+        }
+
+        if (iconVoice) iconVoice.addEventListener('click', function() { toggleVoiceMode(true); });
+        if (iconKeyboard) iconKeyboard.addEventListener('click', function() { toggleVoiceMode(false); if (!isFirstConsultClick) setTimeout(showKeyboard, 100); });
+
+        function toggleVoiceMode(enableVoice) {
+            isVoiceMode = enableVoice;
+            if (enableVoice) {
+                iconVoice.classList.add('hidden');
+                iconKeyboard.classList.remove('hidden');
+                consultInputTrigger.style.display = 'none';
+                iconAttach.style.display = 'none';
+                btnSend.classList.remove('active'); 
+                btnVoiceHold.style.display = 'flex';
+                
+                if (isReplying) {
+                    iconStopVoice.classList.add('visible');
+                    iconStopText.classList.remove('visible'); 
+                }
+                
+                hideKeyboard();
+            } else {
+                iconVoice.classList.remove('hidden');
+                iconKeyboard.classList.add('hidden');
+                consultInputTrigger.style.display = 'block';
+                toggleIcons(consultInputTrigger.value);
+                btnVoiceHold.style.display = 'none';
+                
+                if (isReplying) {
+                    iconStopText.classList.add('visible');
+                    iconStopVoice.classList.remove('visible');
+                    iconAttach.style.display = 'none';
+                    btnSend.classList.remove('active');
+                }
+            }
+        }
+
+        if (btnVoiceHold) {
+            btnVoiceHold.addEventListener('mousedown', startRecording);
+            btnVoiceHold.addEventListener('touchstart', startRecording);
+        }
+        document.addEventListener('mousemove', moveRecording);
+        document.addEventListener('touchmove', moveRecording);
+        document.addEventListener('mouseup', endRecording);
+        document.addEventListener('touchend', endRecording);
+
+        if (iconStopText) iconStopText.addEventListener('click', stopReply);
+        if (iconStopVoice) iconStopVoice.addEventListener('click', stopReply);
+
+        function startRecording(e) {
+            if (!isVoiceMode) return;
+            e.preventDefault();
+            isRecording = true;
+            isCanceling = false;
+            recordingStartTime = Date.now();
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+            consultBottomBar.classList.add('recording-active');
+            btnVoiceHold.classList.add('recording');
+            btnVoiceHold.innerText = '松开发送'; 
+            recordingTip.style.display = 'block';
+            recordingTipText.innerText = '松开发送，上滑取消';
+            recordingTipText.style.background = 'rgba(0,0,0,0.6)';
+        }
+
+        function moveRecording(e) {
+            if (!isRecording) return;
+            const currentY = e.touches ? e.touches[0].clientY : e.clientY;
+            const diff = startY - currentY;
+            if (diff > 50) { 
+                if (!isCanceling) {
+                    isCanceling = true;
+                    consultBottomBar.classList.add('canceling');
+                    btnVoiceHold.classList.add('canceling');
+                    recordingTipText.innerText = '松开发送，上滑取消'; 
+                    recordingTipText.style.background = 'var(--cancel-orange)';
+                    btnVoiceHold.innerText = '松开 取消';
+                }
+            } else {
+                if (isCanceling) {
+                    isCanceling = false;
+                    consultBottomBar.classList.remove('canceling');
+                    btnVoiceHold.classList.remove('canceling');
+                    recordingTipText.style.background = 'rgba(0,0,0,0.6)';
+                    btnVoiceHold.innerText = '松开 结束';
+                }
+            }
+        }
+
+        function endRecording(e) {
+            if (!isRecording) return;
+            isRecording = false;
+            const duration = Date.now() - recordingStartTime;
+            consultBottomBar.classList.remove('recording-active');
+            consultBottomBar.classList.remove('canceling');
+            btnVoiceHold.classList.remove('recording');
+            btnVoiceHold.classList.remove('canceling');
+            btnVoiceHold.innerText = '按住说话';
+            recordingTip.style.display = 'none';
+
+            if (isCanceling) {
+                console.log('已取消发送');
+            } else if (duration < 1000) {
+                showToast('说话时间太短');
+            } else {
+                const msgNode = sendMessage('仰天大笑出门去，一不小心扭到腰', 'voice');
+                updateLatestMessageStyle(msgNode);
+                const logoArea = document.getElementById('consult-logo-area');
+                if(logoArea) logoArea.style.display = 'none';
+                
+                setTimeout(simulateReply, 500);
+            }
+        }
+
+        function updateLatestMessageStyle(newMsgNode) {
+            const allUserMsgs = document.querySelectorAll('.chat-message.user-msg');
+            allUserMsgs.forEach(msg => {
+                msg.classList.remove('latest');
+                msg.onclick = null; 
+            });
+            
+            if (newMsgNode) {
+                newMsgNode.classList.add('latest');
+                newMsgNode.onclick = function() {
+                    fillInputToEdit(newMsgNode);
+                };
+            }
+        }
+
+        function fillInputToEdit(msgNode) {
+            editingMessageNode = msgNode;
+            const content = msgNode.innerText;
+            consultInputTrigger.value = content;
+            toggleIcons(content);
+            updateInputHeight(consultInputTrigger);
+            if (isVoiceMode) toggleVoiceMode(false);
+            iconVoice.classList.add('hidden'); 
+            showKeyboard();
+        }
+
+        function sendMessage(content, type) {
+            const msgDiv = document.createElement('div');
+            let className = 'chat-message';
+            if (type === 'text-user') className += ' user-msg';
+            if (type === 'voice') className += ' user-msg voice';
+            if (type === 'ai') className += ' ai-msg';
+            
+            msgDiv.className = className;
+            msgDiv.innerText = content;
+            
+            // 绑定右键菜单事件
+            msgDiv.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // 增加 Log 用于检查
+                console.log('Right click on message:', msgDiv); 
+                showContextMenu(e, msgDiv, type);
+            });
+
+            chatList.appendChild(msgDiv);
+            chatList.scrollTop = chatList.scrollHeight;
+            return msgDiv; 
+        }
+
+        function showContextMenu(e, targetNode, type) {
+            // 增加 Log 用于检查
+            console.log('Showing context menu for:', type);
+            
+            contextMenuTarget = targetNode;
+            contextMenuList.innerHTML = ''; 
+
+            const isUserMsg = type === 'text-user' || type === 'voice';
+            const actions = isUserMsg 
+                ? [
+                    { text: '复制', action: 'copy' },
+                    { text: '编辑', action: 'edit' },
+                    { text: '删除', action: 'delete' }
+                  ]
+                : [
+                    { text: '复制', action: 'copy' },
+                    { text: '选择文字', action: 'select' },
+                    { text: '分享', action: 'share' },
+                    { text: '删除', action: 'delete' }
+                  ];
+
+            actions.forEach(item => {
+                const li = document.createElement('li');
+                li.innerText = item.text;
+                li.onclick = () => handleMenuAction(item.action);
+                contextMenuList.appendChild(li);
+            });
+
+            // 获取消息气泡的位置 (相对于视口)
+            const rect = targetNode.getBoundingClientRect();
+            
+            // 计算固定位置 (viewport coords)
+            let top = rect.bottom + 5;
+            let left = rect.left + (rect.width / 2);
+            
+            // 简单的边界检查 (如果超出屏幕底部，则显示在上方)
+            const menuHeight = 50; // 估算高度
+            if (top + menuHeight > window.innerHeight) {
+                top = rect.top - menuHeight - 5;
+            }
+            
+            // 应用固定定位样式
+            contextMenu.style.position = 'fixed';
+            contextMenu.style.top = top + 'px';
+            contextMenu.style.left = left + 'px';
+            contextMenu.style.transform = 'translateX(-50%)'; 
+            contextMenu.style.display = 'block';
+        }
+
+        function handleMenuAction(action) {
+            const content = contextMenuTarget.innerText;
+            
+            if (action === 'copy') {
+                navigator.clipboard.writeText(content).then(() => {
+                    showToast('复制成功');
+                }).catch(() => {
+                    showToast('复制成功'); 
+                });
+            } else if (action === 'select') {
+                // 模拟选择文字
+                const selection = window.getSelection();
+                const range = document.createRange();
+                range.selectNodeContents(contextMenuTarget);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            } else if (action === 'edit') {
+                fillInputToEdit(contextMenuTarget);
+            } else if (action === 'delete') {
+                contextMenuTarget.style.display = 'none';
+            } else if (action === 'share') {
+                showToast('分享成功');
+            }
+            
+            contextMenu.style.display = 'none';
+        }
+
+        // 修改：遵循不删减不修改原有功能的原则，在这个函数内精准追加“更多”菜单节点
+        function updateLatestAiActions(newAiMsgNode) {
+            const oldActions = document.querySelectorAll('.msg-actions');
+            oldActions.forEach(el => el.remove());
+
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'msg-actions';
+            
+            const itemCopy = document.createElement('div');
+            itemCopy.className = 'msg-action-item';
+            itemCopy.innerHTML = '<span class="msg-action-icon">📄</span>复制';
+            itemCopy.onclick = function() {
+                const text = newAiMsgNode.childNodes[0].nodeValue; 
+                navigator.clipboard.writeText(text || newAiMsgNode.innerText.replace('复制分享重新回答','')).then(() => showToast('复制成功'));
+            };
+
+            const itemShare = document.createElement('div');
+            itemShare.className = 'msg-action-item';
+            itemShare.innerHTML = '<span class="msg-action-icon">🔗</span>分享';
+            itemShare.onclick = function() { showToast('分享成功'); };
+
+            const itemRegen = document.createElement('div');
+            itemRegen.className = 'msg-action-item';
+            itemRegen.innerHTML = '<span class="msg-action-icon">🔄</span>重新回答';
+            itemRegen.onclick = function() { 
+                newAiMsgNode.remove(); 
+                simulateReply(); 
+            };
+
+            // ---------------- 需求2扩充：更多菜单开始 ----------------
+            const itemMore = document.createElement('div');
+            itemMore.className = 'msg-action-item';
+            itemMore.style.marginLeft = 'auto'; // 将该项推向最右侧
+            itemMore.style.position = 'relative'; // 相对定位，为了下拉菜单提供挂载点
+            itemMore.innerHTML = '更多 <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="margin-left: 2px;"><path d="M7 10l5 5 5-5z"/></svg>';
+
+            const moreMenu = document.createElement('div');
+            moreMenu.className = 'action-more-menu';
+            moreMenu.style.display = 'none';
+            // 反馈问题事件挂载
+            moreMenu.innerHTML = '<div class="more-menu-item" onclick="handleFeedback(event)">反馈问题</div>';
+            itemMore.appendChild(moreMenu);
+
+            itemMore.onclick = function(e) {
+                e.stopPropagation(); // 阻止冒泡触发 document 的 click
+                const isVisible = moreMenu.style.display === 'block';
+                // 隐藏同页面可能存在的其他更多菜单
+                document.querySelectorAll('.action-more-menu').forEach(m => m.style.display = 'none');
+                moreMenu.style.display = isVisible ? 'none' : 'block';
+            };
+            // ---------------- 需求2扩充：更多菜单结束 ----------------
+
+            actionsDiv.appendChild(itemCopy);
+            actionsDiv.appendChild(itemShare);
+            actionsDiv.appendChild(itemRegen);
+            actionsDiv.appendChild(itemMore); // 需求2追加
+            
+            newAiMsgNode.appendChild(actionsDiv);
+            chatList.scrollTop = chatList.scrollHeight;
+        }
+
+        // 需求2：处理反馈问题点击
+        function handleFeedback(e) {
+            e.stopPropagation();
+            showToast('准备反馈问题');
+            document.querySelectorAll('.action-more-menu').forEach(m => m.style.display = 'none');
+        }
+
+        function stopReply() {
+            if (replyTimer) {
+                clearInterval(replyTimer);
+                replyTimer = null;
+            }
+            isReplying = false;
+            
+            if (iconStopText) iconStopText.classList.remove('visible');
+            if (iconStopVoice) iconStopVoice.classList.remove('visible');
+            
+            if (!isVoiceMode) {
+                toggleIcons(consultInputTrigger.value); 
+            }
+            
+            if (currentReplyNode) {
+                updateLatestAiActions(currentReplyNode);
+            }
+        }
+
+        function simulateReply() {
+            if (isReplying) stopReply();
+            isReplying = true;
+
+            const replyText = `嗯，用户现在问的是老板负什么责任，看来ta对之前分析的投毒案中老板的法律责任感兴趣。之前已经详细解释了投毒者的刑事责任，现在需要转向火锅店经营者的责任层面。
+
+用户可能是个法律学习者或普通市民，想了解这类社会事件中的责任分配。ta的提问很精准，说明对法律逻辑有一定理解，但可能不清楚餐饮行业的具体法律义务。深层需求或许是想知道“如果我是消费者如何维权”或“开店要注意什么”。
+
+从专业角度，老板的责任需要分三个层面：刑事、民事、行政。刑事上重点分析过失犯罪，因为老板不存在故意；民事要突出消费者维权的双轨制（企业赔偿+个人追偿）；行政责任那块要强调食品安全法的具体条文。
+
+特别要注意因果关系的论证——虽然老鼠药是他人投放，但老板的违规操作直接导致结果发生。这点在辩护律师角度常被质疑，所以需要引用介入因素理论（老板行为升高了风险且具有可归责性）。
+
+最后补充维权建议是实用的，因为普通用户更关心“我能怎么做”。行政举报那块很多人会忽略，其实这是最快捷的维权方式。`;
+
+            if (isVoiceMode) {
+                if (iconStopVoice) iconStopVoice.classList.add('visible');
+            } else {
+                if (iconAttach) iconAttach.style.display = 'none';
+                if (btnSend) btnSend.classList.remove('active');
+                if (iconStopText) iconStopText.classList.add('visible');
+            }
+
+            currentReplyNode = sendMessage('', 'ai');
+            
+            let i = 0;
+            const totalTime = 8000; 
+            const interval = totalTime / replyText.length;
+            
+            replyTimer = setInterval(() => {
+                currentReplyNode.innerText += replyText.charAt(i);
+                if (chatList) chatList.scrollTop = chatList.scrollHeight;
+                i++;
+                if (i >= replyText.length) {
+                    stopReply(); 
+                }
+            }, interval);
+        }
+
+        function showKeyboard() {
+            if(virtualKeyboard) virtualKeyboard.classList.add('active');
+            if(keyboardOverlay) keyboardOverlay.classList.add('active');
+            if(chatList) chatList.style.paddingBottom = '350px'; 
+            if(consultInputTrigger) consultInputTrigger.focus();
+            setTimeout(() => { if(chatList) chatList.scrollTop = chatList.scrollHeight; }, 300);
+        }
+
+        function hideKeyboard() {
+            if(virtualKeyboard) virtualKeyboard.classList.remove('active');
+            if(keyboardOverlay) keyboardOverlay.classList.remove('active');
+            if(chatList) chatList.style.paddingBottom = '110px'; // 恢复为新的 padding
+        }
+
+        function updateInputHeight(el) {
+            el.style.height = 'auto';
+            el.style.height = '23px'; 
+            let scHeight = el.scrollHeight;
+            if (scHeight <= 25) el.style.height = '23px';
+            else if (scHeight <= 48) el.style.height = '46px';
+            else { el.style.height = '69px'; el.scrollTop = el.scrollHeight; }
+        }
+
+        function toggleIcons(value) {
+            if (isReplying) return; 
+
+            if (value.length > 0) {
+                if(iconAttach) iconAttach.style.display = 'none'; 
+                if(btnSend) btnSend.classList.add('active'); 
+                if(iconVoice) iconVoice.classList.add('hidden');
+            } else {
+                if (!isVoiceMode && iconVoice) iconVoice.classList.remove('hidden');
+                if(iconAttach) iconAttach.style.display = 'block';
+                if(btnSend) btnSend.classList.remove('active');
+            }
+        }
+
+        // 修改：Drawer 按钮点击逻辑，改为显示授权 Drawer
+        if(drawerAuthBtn) {
+            drawerAuthBtn.addEventListener('click', function() { 
+                if (!drawerCheckbox.checked) {
+                    pendingActionSource = 'drawer-main';
+                    openCustomModal();
+                } else {
+                    showWechatPhoneDrawer();
+                }
+            });
+        }
+        
+        // 需求6：显示微信授权专用抽屉
+        function showWechatPhoneDrawer() {
+            closeAuthDrawer();
+            const phoneDrawer = document.getElementById('wechat-phone-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            if(phoneDrawer) phoneDrawer.classList.add('active');
+            if(overlay) {
+                overlay.classList.add('active');
+                // 绑定覆盖层点击关闭事件
+                overlay.onclick = function() {
+                    completeWechatAuth(); // 点击空白处也算完成授权？需求说点击空白切换为已登录
+                };
+            }
+        }
+        
+        // 需求6：完成授权逻辑
+        function completeWechatAuth() {
+            const phoneDrawer = document.getElementById('wechat-phone-drawer');
+            const overlay = document.getElementById('auth-drawer-overlay');
+            if(phoneDrawer) phoneDrawer.classList.remove('active');
+            if(overlay) {
+                overlay.classList.remove('active');
+                overlay.onclick = closeAuthDrawer; // 恢复原来的点击事件
+            }
+            doLoginSuccess();
+        }
+
+        function closeAuthDrawer() { 
+            const authDrawer = document.getElementById('auth-drawer');
+            const allowDrawer = document.getElementById('allow-login-drawer');
+            const bindDrawer = document.getElementById('bind-phone-drawer');
+            const bindDrawerForm = document.getElementById('bind-phone-drawer-form');
+            const authDrawerOverlay = document.getElementById('auth-drawer-overlay');
+            const overlayAppLogin = document.getElementById('overlay-app-login');
+            const overlayAppFormLogin = document.getElementById('overlay-app-form-login');
+            
+            if(authDrawer) authDrawer.classList.remove('active'); 
+            if(allowDrawer) allowDrawer.classList.remove('active');
+            if(bindDrawer) bindDrawer.classList.remove('active');
+            if(bindDrawerForm) bindDrawerForm.classList.remove('active');
+            
+            if(authDrawerOverlay) authDrawerOverlay.classList.remove('active'); 
+            if(overlayAppLogin) overlayAppLogin.classList.remove('active');
+            if(overlayAppFormLogin) overlayAppFormLogin.classList.remove('active');
+        }
+        if(authDrawerOverlay) authDrawerOverlay.addEventListener('click', closeAuthDrawer);
+        
+        // 新增：为新增的overlay绑定关闭事件
+        const overlayAppLogin = document.getElementById('overlay-app-login');
+        if(overlayAppLogin) overlayAppLogin.addEventListener('click', closeAuthDrawer);
+        
+        const overlayAppFormLogin = document.getElementById('overlay-app-form-login');
+        if(overlayAppFormLogin) overlayAppFormLogin.addEventListener('click', closeAuthDrawer);
+        
+        // ---------------- 本次新增需求追加的 JS ----------------
+
+        // 需求1：监听滚动事件显示“回到底部”按钮
+        if (chatList) {
+            chatList.addEventListener('scroll', function() {
+                const containerHeight = chatList.clientHeight;
+                const scrollDistanceFromBottom = chatList.scrollHeight - chatList.scrollTop - containerHeight;
+                const scrollToBottomBtn = document.getElementById('scroll-to-bottom-btn');
+                // 距离底部超过50vh (按屏幕高一半计算，适配模拟器)
+                if (scrollToBottomBtn) {
+                    if (scrollDistanceFromBottom > window.innerHeight * 0.5) {
+                        scrollToBottomBtn.style.display = 'flex';
+                    } else {
+                        scrollToBottomBtn.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // 需求1：点击回到底部
+        function scrollToChatBottom() {
+            if(chatList) chatList.scrollTo({ top: chatList.scrollHeight, behavior: 'smooth' });
+        }
+
+        // 本次新增功能：Web 端三击微信扫码触发调试及绑定逻辑
+        const webWechatBtn = document.getElementById('web-wechat-btn');
+        if (webWechatBtn) {
+            webWechatBtn.addEventListener('click', function(e) {
+                // e.detail 原生记录了连续点击的次数
+                if (e.detail === 3) {
+                    document.getElementById('web-wechat-debug-controls').style.display = 'flex';
+                }
+            });
+        }
+
+        function handleWebWechatDebug(type) {
+            // 点击后隐藏该调试面板
+            document.getElementById('web-wechat-debug-controls').style.display = 'none';
+            if (type === 'bound') {
+                doLoginSuccess();
+            } else if (type === 'unbound') {
+                document.getElementById('web-bind-phone-modal').style.display = 'flex';
+            }
+        }
+
+        function closeWebBindPhoneModal() {
+            document.getElementById('web-bind-phone-modal').style.display = 'none';
+        }
+
+        function confirmWebBindPhone() {
+            closeWebBindPhoneModal();
+            doLoginSuccess();
+        }
+
+        // 初始化运行检查
+        window.addEventListener('load', () => {
+             // 默认显示Web端，无需额外操作
+        });
+
+    </script>
+</body>
+</html>

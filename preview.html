@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>untitled</title>
+	<link rel="icon" href="ico.svg" type="image/svg+xml">
+</head>
+<body>
+    <script>
+        const content = localStorage.getItem('zen_preview_html');
+        if (content) {
+            const titleMatch = content.match(/<title>([\s\S]*?)<\/title>/i);
+            
+            document.open();
+            document.write(content);
+            document.close();
+
+            if (titleMatch && titleMatch[1]) {
+                document.title = titleMatch[1].trim();
+            }
+        } else {
+            document.body.innerHTML = '<h2>未找到预览内容，请返回编辑器重新点击预览。</h2>';
+        }
+    </script>
+</body>
+</html>
