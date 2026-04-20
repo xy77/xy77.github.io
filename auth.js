@@ -3,9 +3,9 @@
  */
 
 const AUTH_CONFIG = {
-    token: "NzQxMjk2NTg=", 
+    token: "UWlhbg==", 
     storageKey: 'auth_expiry_timestamp',
-    daysToExpiry: 7
+    daysToExpiry: 2
 };
 
 
@@ -31,12 +31,23 @@ function checkAuth() {
     if (!expiry || now > parseInt(expiry)) {
         // 未授权或已过期 -> 且不在验证页时，跳转验证
         if (!isAuthPage) {
-            window.location.replace('auth.html');
+            // 【修改点1】将当前页面的完整 URL 进行编码，作为 redirect 参数拼接
+            const currentUrl = encodeURIComponent(window.location.href);
+            window.location.replace('/zen/auth.html?redirect=' + currentUrl); 
         }
     } else {
-        // 已授权 -> 且在验证页时，跳回主页
+        // 已授权 -> 且在验证页时，跳回原页面
         if (isAuthPage) {
-            window.location.replace('index.html');
+            // 【修改点2】解析 URL，看看有没有带 redirect 参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const redirectUrl = urlParams.get('redirect');
+            
+            // 如果有来源页面的地址，就跳回去；如果没有（比如用户直接手敲访问的 auth.html），就默认回主页
+            if (redirectUrl) {
+                window.location.replace(redirectUrl);
+            } else {
+                window.location.replace('/zen/index.html');
+            }
         }
     }
 }
@@ -45,7 +56,9 @@ function checkAuth() {
  * 处理登录验证
  */
 function handleLogin(inputPwd) {
-    if (inputPwd === _decode(AUTH_CONFIG.token)) {
+    const currentDay = new Date().getDate().toString();
+    
+    if (inputPwd === currentDay) {
         const now = new Date().getTime();
         const expiryTime = now + (AUTH_CONFIG.daysToExpiry * 24 * 60 * 60 * 1000);
         
