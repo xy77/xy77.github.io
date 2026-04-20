@@ -3,162 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="icon" href="ico.svg" type="image/svg+xml">
+    <link rel="icon" href="ico.svg" type="image/svg+xml">
+    <script src="[https://code.jquery.com/jquery-3.6.0.min.js](https://code.jquery.com/jquery-3.6.0.min.js)"></script>
     <title>HTML 预览</title>
     <!-- 引入权限验证逻辑 -->
     <script src="auth.js"></script>
-    <script>
-        // 页面载入时立即执行检查
-        if (typeof checkAuth === 'function') {
-            checkAuth();
-        }
-    </script>
+    <!-- 引入拆分出来的 CSS -->
+    <link rel="stylesheet" href="style.css">
     <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        /* 选中项目的副按钮样式 */
-        .folder-btn-active {
-            border-color: #1890ff !important;
-            background-color: #1890ff !important;
-            color: white !important;
-            box-shadow: 0 4px 6px -1px rgba(24, 144, 255, 0.2);
-        }
-
-        /* 简洁编辑器容器布局 */
-        #editor-container {
-            display: flex;
-            background-color: #ffffff; 
-            border: 1px solid #d1d5db;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            position: relative;
-            min-height: 0;
-            flex-grow: 1;
-        }
-
-        /* 简洁行号样式 */
-        #line-numbers {
-            width: 4.5rem; 
-            background-color: #f9fafb;
-            color: #9ca3af;
-            padding: 1rem 0;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.875rem;
-            line-height: 1.5rem;
-            user-select: none;
-            border-right: 1px solid #e5e7eb;
-            overflow: hidden;
-            text-align: right;
-        }
-
-        #line-numbers > div {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding-right: 0.5rem;
-            height: 1.5rem;
-        }
-
-        /* 蓝色方框折叠/展开图标样式 */
-        .fold-marker {
-            cursor: pointer;
-            width: 12px;
-            height: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #3b82f6;
-            color: white;
-            border-radius: 3px;
-            margin-left: 6px;
-            font-size: 12px;
-            font-weight: bold;
-            transition: all 0.2s;
-            line-height: 1;
-        }
-        .fold-marker:hover {
-            background-color: #2563eb;
-            transform: scale(1.1);
-        }
-
-        /* 标准输入层 (TextArea) */
-        #code-input {
-            flex-grow: 1;
-            padding: 1rem;
-            background-color: #ffffff;
-            color: #1f2937;
-            border: none;
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 0.875rem;
-            line-height: 1.5rem;
-            resize: none;
-            outline: none;
-            white-space: pre;
-            overflow-x: auto;
-            overflow-y: auto;
-        }
-
-        #line-numbers::-webkit-scrollbar {
-            display: none;
-        }
-
-        /* Switch 开关样式 */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 44px;
-            height: 22px;
-        }
-        .switch input { 
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: #1890ff;
-        }
-        input:focus + .slider {
-            box-shadow: 0 0 1px #1890ff;
-        }
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-
-        /* 新增：侧边栏滚动条样式 */
-        #github-sidebar ::-webkit-scrollbar {
-            width: 4px;
-        }
-        #github-sidebar ::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-    </style>
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <!-- 引入 Monaco Editor 加载器 -->
+    <script src="[https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js](https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js)"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
 
-    <!-- ========== 新增：左侧遮罩和触发区结构 ========== -->
+    <!-- ========== 左侧遮罩和 ========== -->
     <div id="sidebar-trigger" class="fixed left-0 top-0 w-6 h-screen z-[99]"></div>
     <div id="github-sidebar" class="fixed left-0 top-0 w-[12.5vw] h-screen bg-black z-[100] transition-transform duration-300 -translate-x-full text-white overflow-hidden shadow-2xl flex flex-col font-sans">
         <div class="p-4 border-b border-white/20 flex items-center bg-black z-10 shrink-0">
@@ -168,52 +27,68 @@
         <div id="sidebar-content" class="p-2 flex-grow overflow-y-auto relative">
             <div id="sidebar-loading" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-transparent z-20">
                 <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span class="text-[16px] mt-2 text-gray-300">加载中...</span>
+                <span class="text-[12px] mt-2 text-gray-300">加载中...</span>
             </div>
             <ul id="sidebar-list" class="space-y-1"></ul>
         </div>
     </div>
-    <!-- ================================================== -->
 
-    <!-- 主容器宽度设置为 75vw -->
+    <!-- 主容器 -->
     <div class="bg-white w-[75vw] h-[85vh] rounded-xl shadow-lg flex flex-col overflow-hidden border border-gray-100">
-        <!-- 头部标题 -->
-        <div class="bg-gray-800 text-white px-6 py-4 flex justify-between items-center shrink-0">
-            <h1 class="text-xl font-semibold tracking-wide flex items-center">
-                HTML 预览
-            </h1>
-        </div>
-
         <!-- 主体内容区 -->
         <div class="flex-grow flex flex-col p-6 space-y-4 min-h-0">
-            <!-- 简洁版带行号和折叠功能的编辑器 -->
+            <!-- 编辑器 -->
             <div id="editor-container" class="transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
-                <div id="line-numbers"></div>
-                <textarea 
-                    id="code-input" 
-                    placeholder="在此输入..."
-                    spellcheck="false"
-                ></textarea>
+                <div id="editor"></div>
             </div>
 
             <!-- 消息提示区 -->
             <div id="status-message" class="hidden text-sm p-3 rounded-lg animate-pulse"></div>
 
             <!-- 按钮区 -->
-            <div class="flex justify-end pt-2 space-x-3 shrink-0">
+            <div class="flex items-center justify-end pt-2 space-x-4 shrink-0">
                 <button 
                     id="publish-btn" 
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                >
+                    发布
+                </button>
+
+                <button 
+                    id="download-btn" 
                     class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
                 >
-                    <span id="publish-text">发布</span>
-                    <div id="publish-spinner" class="hidden ml-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    下载
                 </button>
+
                 <button 
                     id="preview-btn" 
                     class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                     预览
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下载配置弹窗 -->
+    <div id="download-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-[60] backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">下载</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
+                    <div class="flex items-center">
+                        <input type="text" id="download-filename" placeholder="请输入文件名，仅字母和数字" class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
+                        <span id="download-ext-label" class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button id="download-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
+                <button id="download-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">确认下载</button>
             </div>
         </div>
     </div>
@@ -225,31 +100,40 @@
                 <h2 class="text-lg font-semibold text-gray-800">发布</h2>
             </div>
             <div class="p-6 space-y-5">
-                <!-- 文件名输入（位于最上方） -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">提交密码</label>
+                    <input type="password" id="publish-password" placeholder="********" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
                     <div class="flex items-center">
-                        <input type="text" id="file-name-input" placeholder="请输入文件名" class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
-                        <span class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
+                        <input type="text" id="file-name-input" placeholder="" class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
+                        <span id="publish-ext-label" class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
                     </div>
                 </div>
 
                 <!-- 项目选择 -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-3">选择项目</label>
-                    <div id="project-container" class="flex flex-wrap gap-2 mb-3 max-h-32 overflow-y-auto p-1">
-                        <span class="text-sm text-gray-400">正在获取目录列表...</span>
-                    </div>
-                    <div id="project-actions" class="flex gap-4">
-                        <button id="show-more-btn" class="hidden text-xs text-blue-600 hover:underline">查看更多</button>
+                    <div class="flex items-center gap-4 mb-3">
+                        <label class="block text-sm font-medium text-gray-700">选择项目</label>
                         <button id="add-project-btn" class="text-xs text-green-600 hover:underline">新增项目</button>
+                    </div>
+                    <div id="project-container" class="flex flex-wrap gap-2 mb-3 max-h-32 overflow-y-auto p-1">
+                        <span class="text-sm text-gray-400">正在获取项目列表...</span>
                     </div>
                 </div>
 
                 <!-- 新增项目输入 -->
-                <div id="new-project-container" class="hidden border-t pt-4 space-y-2">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">新增项目</label>
-                    <input type="text" id="new-project-name" placeholder="仅限字母数字" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                <div id="new-project-container" class="hidden border-t pt-4 space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">目录</label>
+                        <input type="text" id="new-project-name" placeholder="仅限字母数字" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">名称</label>
+                        <input type="text" id="new-project-summary" placeholder="显示在左侧列表里的名称" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
                 </div>
 
                 <!-- 加密开关 -->
@@ -263,436 +147,12 @@
             </div>
             <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
                 <button id="modal-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
-                <button id="modal-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">确认发布</button>
+                <button id="modal-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">发布</button>
             </div>
         </div>
     </div>
 
-    <script>
-        // 核心配置：Token 已拆分为三段存储
-        const config = {
-            t1: 'github_pat_11AHGFESA0J1xZLVh6IN3h_L',
-            t2: 'NmZyLqLR67B9QtQ8vMypawhc2HTMBuaiFZcW',
-            t3: 'L1v7sN47A25R6XvgLPIcuU',
-            getToken: function() {
-                return this.t1 + this.t2 + this.t3;
-            },
-            owner: 'xy77', 
-            repo: 'zen', 
-            branch: 'main' 
-        };
-
-        // 状态管理
-        let folders = [];
-        let selectedFolder = null;
-        let isNewProjectMode = false;
-        let foldStorage = new Map();
-
-        // 元素获取
-        const codeInput = document.getElementById('code-input');
-        const lineNumbers = document.getElementById('line-numbers');
-        const previewBtn = document.getElementById('preview-btn');
-        const publishBtn = document.getElementById('publish-btn');
-        const publishText = document.getElementById('publish-text');
-        const publishSpinner = document.getElementById('publish-spinner');
-        const statusMessage = document.getElementById('status-message');
-
-        const publishModal = document.getElementById('publish-modal');
-        const projectContainer = document.getElementById('project-container');
-        const showMoreBtn = document.getElementById('show-more-btn');
-        const addProjectBtn = document.getElementById('add-project-btn');
-        const newProjectContainer = document.getElementById('new-project-container');
-        const newProjectName = document.getElementById('new-project-name');
-        const encryptionSwitch = document.getElementById('encryption-switch');
-        const fileNameInput = document.getElementById('file-name-input');
-        const modalCancel = document.getElementById('modal-cancel');
-        const modalConfirm = document.getElementById('modal-confirm');
-
-        // --- 代码折叠核心算法 ---
-        function findClosingTagIndex(lines, startLine, tagName) {
-            let depth = 0;
-            const openRegex = new RegExp(`<${tagName}(?![^>]*/>)`, 'i');
-            const closeRegex = new RegExp(`</${tagName}>`, 'i');
-            for (let i = startLine; i < lines.length; i++) {
-                if (openRegex.test(lines[i])) depth++;
-                if (closeRegex.test(lines[i])) depth--;
-                if (depth <= 0) return i;
-            }
-            return -1;
-        }
-
-        window.foldBlock = function(lineIndex, tagName) {
-            const lines = codeInput.value.split('\n');
-            const endIndex = findClosingTagIndex(lines, lineIndex, tagName);
-            if (endIndex !== -1 && endIndex > lineIndex) {
-                const originalFirstLine = lines[lineIndex];
-                const hiddenContent = lines.slice(lineIndex + 1, endIndex + 1).join('\n');
-                const id = 'f_' + Math.random().toString(36).substr(2, 9);
-                foldStorage.set(id, { firstLine: originalFirstLine, hiddenContent: hiddenContent });
-                lines.splice(lineIndex, (endIndex - lineIndex) + 1, `${originalFirstLine} <!-- FOLDED:${id} -->`);
-                codeInput.value = lines.join('\n');
-                updateLineNumbers();
-            }
-        };
-
-        window.unfoldBlock = function(lineIndex, id) {
-            if (foldStorage.has(id)) {
-                const { firstLine, hiddenContent } = foldStorage.get(id);
-                const lines = codeInput.value.split('\n');
-                lines.splice(lineIndex, 1, firstLine + '\n' + hiddenContent);
-                codeInput.value = lines.join('\n');
-                foldStorage.delete(id);
-                updateLineNumbers();
-            }
-        };
-
-        function getFullCode() {
-            let content = codeInput.value;
-            let hasMarkers = true;
-            while (hasMarkers) {
-                const match = content.match(/ <!-- FOLDED:([^ ]+) -->/);
-                if (match) {
-                    const id = match[1];
-                    const fullMatchString = match[0];
-                    if (foldStorage.has(id)) {
-                        const { hiddenContent } = foldStorage.get(id);
-                        content = content.replace(fullMatchString, '\n' + hiddenContent);
-                    } else content = content.replace(fullMatchString, '');
-                } else hasMarkers = false;
-            }
-            return content;
-        }
-
-        function updateLineNumbers() {
-            const lines = codeInput.value.split('\n');
-            let html = '';
-            lines.forEach((line, index) => {
-                let marker = '<span class="w-[18px] ml-1.5 inline-block"></span>';
-                const foldMatch = line.match(/ <!-- FOLDED:([^ ]+) -->$/);
-                if (foldMatch) {
-                    marker = `<span class="fold-marker" onclick="window.unfoldBlock(${index}, '${foldMatch[1]}')">+</span>`;
-                } else {
-                    const tagMatch = line.match(/<(style|script|div|section|header|footer|nav|main|ul|ol|table|form|body|head|html)[^>]*>/i);
-                    if (tagMatch) marker = `<span class="fold-marker" onclick="window.foldBlock(${index}, '${tagMatch[1]}')">-</span>`;
-                }
-                html += `<div><span>${index + 1}</span>${marker}</div>`;
-            });
-            lineNumbers.innerHTML = html;
-            lineNumbers.scrollTop = codeInput.scrollTop;
-        }
-
-        codeInput.addEventListener('input', updateLineNumbers);
-        codeInput.addEventListener('scroll', () => { lineNumbers.scrollTop = codeInput.scrollTop; });
-
-        // --- 核心交互逻辑 ---
-        function showMessage(text, isError = false) {
-            statusMessage.textContent = text;
-            statusMessage.className = `text-sm p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
-            statusMessage.classList.remove('hidden');
-            setTimeout(() => statusMessage.classList.add('hidden'), 6000);
-        }
-
-        previewBtn.onclick = () => {
-            let htmlContent = getFullCode();
-            if (!htmlContent.trim()) return showMessage('代码为空', true);
-
-            // 预览时判断 <title> 标签并增加绝对路径 favicon
-            const titleMatch = htmlContent.match(/<title>.*?<\/title>/i);
-            if (titleMatch) {
-                const injectIcon = '\n\t<link rel="icon" href="https://xy77.github.io/zen/ico.svg" type="image/svg+xml">';
-                htmlContent = htmlContent.replace(/(<title>.*?<\/title>)/i, `$1${injectIcon}`);
-            }
-
-            // 修改预览方案：使用 localStorage 传递数据到中转页
-            try {
-                localStorage.setItem('zen_preview_html', htmlContent);
-                window.open('preview.html', '_blank');
-            } catch (e) {
-                showMessage('预览失败：代码量可能超过了浏览器 localStorage 限制 (5MB)', true);
-            }
-        };
-
-        async function fetchFolders() {
-            const token = config.getToken();
-            try {
-                const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/?t=${Date.now()}`;
-                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!res.ok) throw new Error('API 访问受限');
-                const data = await res.json();
-                folders = data.filter(item => item.type === 'dir').map(item => item.name);
-                renderProjectButtons(8);
-            } catch (err) {
-                projectContainer.innerHTML = '<span class="text-sm text-red-500">无法连接到 GitHub</span>';
-            }
-        }
-
-        function renderProjectButtons(limit = 8) {
-            projectContainer.innerHTML = '';
-            const list = limit ? folders.slice(0, limit) : folders;
-            list.forEach(f => {
-                const btn = document.createElement('button');
-                btn.className = `px-3 py-1.5 text-sm border border-gray-200 rounded-md bg-white hover:border-blue-400 transition-all ${selectedFolder === f && !isNewProjectMode ? 'folder-btn-active' : ''}`;
-                btn.textContent = f;
-                btn.onclick = () => {
-                    selectedFolder = f;
-                    isNewProjectMode = false;
-                    newProjectContainer.classList.add('hidden');
-                    renderProjectButtons(limit);
-                };
-                projectContainer.appendChild(btn);
-            });
-            showMoreBtn.classList.toggle('hidden', !limit || folders.length <= limit);
-        }
-
-        publishBtn.onclick = () => {
-            if (!codeInput.value.trim()) return showMessage('代码内容不能为空', true);
-            publishModal.classList.replace('hidden', 'flex');
-            fetchFolders();
-            // 自动聚焦到文件名输入框
-            setTimeout(() => fileNameInput.focus(), 100);
-        };
-
-        addProjectBtn.onclick = () => {
-            isNewProjectMode = true;
-            selectedFolder = null;
-            newProjectContainer.classList.remove('hidden');
-            renderProjectButtons(8);
-            newProjectName.focus();
-        };
-
-        modalCancel.onclick = () => publishModal.classList.replace('flex', 'hidden');
-
-        modalConfirm.onclick = async () => {
-            const token = config.getToken();
-            const folder = isNewProjectMode ? newProjectName.value.trim() : selectedFolder;
-            const fileName = fileNameInput.value.trim().replace(/[^a-zA-Z0-9.+\-]/g, '');
-
-            if (!folder || !fileName) return alert('请确保目录名和文件名完整');
-
-            let rawContent = getFullCode();
-            
-            // 处理加密和 favicon 逻辑 (发布时保持相对路径)
-            const titleMatch = rawContent.match(/<title>.*?<\/title>/i);
-            if (titleMatch) {
-                let injectCode = '\n\t<link rel="icon" href="../ico.svg" type="image/svg+xml">';
-                if (encryptionSwitch.checked) {
-                    injectCode += '\n<!-- 引入权限验证逻辑 -->\n\t<script src="../auth.js"><\/script>\n\t<script>\n\t\t// 页面载入时立即执行检查\n\t\tif (typeof checkAuth === \'function\') {\n\t\t\tcheckAuth();\n\t\t}\n\t<\/script>';
-                }
-                rawContent = rawContent.replace(/(<title>.*?<\/title>)/i, `$1${injectCode}`);
-            }
-
-            const path = `${folder}/${fileName}.html`;
-
-            publishModal.classList.replace('flex', 'hidden');
-            publishBtn.disabled = true;
-            publishSpinner.classList.remove('hidden');
-            publishText.textContent = '正在推送...';
-
-            try {
-                let sha = null;
-                const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?ref=${config.branch}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (getRes.ok) sha = (await getRes.json()).sha;
-
-                const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`, {
-                    method: 'PUT',
-                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: `deploy: ${path}`,
-                        content: btoa(unescape(encodeURIComponent(rawContent))),
-                        sha: sha,
-                        branch: config.branch
-                    })
-                });
-
-                if (putRes.ok) {
-                    const url = `https://${config.owner}.github.io/${config.repo}/${path}`;
-                    const el = document.createElement("textarea"); el.value = url; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-                    showMessage(`发布成功！已复制链接：${url}`);
-                    fileNameInput.value = '';
-                } else throw new Error('推送失败，请检查仓库权限');
-            } catch (e) {
-                showMessage(e.message, true);
-            } finally {
-                publishBtn.disabled = false;
-                publishSpinner.classList.add('hidden');
-                publishText.textContent = '发布';
-            }
-        };
-
-        // 页面初始化
-        updateLineNumbers();
-        // 进入页面时默认 focus 到输入框
-        window.addEventListener('load', () => {
-            codeInput.focus();
-        });
-
-        // ================== 新增：左侧目录树遮罩交互逻辑 ==================
-        const domSidebarTrigger = document.getElementById('sidebar-trigger');
-        const domGithubSidebar = document.getElementById('github-sidebar');
-        const domSidebarList = document.getElementById('sidebar-list');
-        const domSidebarTitle = document.getElementById('sidebar-title');
-        const domSidebarBackBtn = document.getElementById('sidebar-back-btn');
-        const domSidebarLoading = document.getElementById('sidebar-loading');
-
-        let sidebarHideTimer = null;
-        let sidebarCache = {}; // 内存级缓存，避免频繁请求 API 被限流
-
-        // 鼠标进入触发区时显示遮罩
-        domSidebarTrigger.addEventListener('mouseenter', () => {
-            clearTimeout(sidebarHideTimer);
-            domGithubSidebar.classList.remove('-translate-x-full');
-            // 如果列表为空，默认加载根目录
-            if (domSidebarList.innerHTML === '') {
-                loadSidebarData('');
-            }
-        });
-
-        // 鼠标进入遮罩区内，保持显示
-        domGithubSidebar.addEventListener('mouseenter', () => {
-            clearTimeout(sidebarHideTimer);
-        });
-
-        // 鼠标离开遮罩区时，延迟 1 秒隐藏
-        domGithubSidebar.addEventListener('mouseleave', () => {
-            sidebarHideTimer = setTimeout(() => {
-                domGithubSidebar.classList.add('-translate-x-full');
-            }, 1000);
-        });
-
-        // 获取特定路径的最新更新时间 (commit date)
-        async function fetchPathCommitDate(path) {
-            const token = config.getToken();
-            try {
-                const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/commits?path=${path}&per_page=1`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!res.ok) return null;
-                const data = await res.json();
-                if (data && data.length > 0) {
-                    return data[0].commit.committer.date;
-                }
-                return null;
-            } catch (e) {
-                return null;
-            }
-        }
-
-        // 加载指定路径的目录/文件数据
-        async function loadSidebarData(path) {
-            domSidebarLoading.classList.remove('hidden');
-            domSidebarList.innerHTML = '';
-            
-            domSidebarTitle.textContent = path === '' ? '项目列表' : path.split('/').pop();
-            
-            // 返回按钮逻辑
-            if (path === '') {
-                domSidebarBackBtn.classList.add('hidden');
-            } else {
-                domSidebarBackBtn.classList.remove('hidden');
-                domSidebarBackBtn.onclick = () => {
-                    const parentPath = path.split('/').slice(0, -1).join('/');
-                    loadSidebarData(parentPath);
-                };
-            }
-
-            // 使用缓存加速二次加载
-            if (sidebarCache[path]) {
-                renderSidebarList(sidebarCache[path]);
-                domSidebarLoading.classList.add('hidden');
-                return;
-            }
-
-            const token = config.getToken();
-            try {
-                const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!res.ok) throw new Error('读取目录失败');
-                const data = await res.json();
-                
-                // 筛选逻辑：根目录仅需显示文件夹，次级目录显示文件夹和文件
-                let targetItems = path === '' ? data.filter(item => item.type === 'dir') : data;
-
-                // 并发请求每个文件/文件夹的更新时间
-                const itemsWithDates = await Promise.all(targetItems.map(async (item) => {
-                    const dateStr = await fetchPathCommitDate(item.path);
-                    return { ...item, date: dateStr || '1970-01-01T00:00:00Z' }; // 若未获取到时间，提供默认回退时间
-                }));
-
-                // 按照更新时间从最新到最旧排序
-                itemsWithDates.sort((a, b) => new Date(b.date) - new Date(a.date));
-                
-                sidebarCache[path] = itemsWithDates; // 存入缓存
-                renderSidebarList(itemsWithDates);
-            } catch (e) {
-                domSidebarList.innerHTML = `<li class="text-red-400 text-xs p-2 text-center mt-4">获取失败，请重试</li>`;
-            } finally {
-                domSidebarLoading.classList.add('hidden');
-            }
-        }
-
-        // 渲染列表到 DOM
-        function renderSidebarList(items) {
-            domSidebarList.innerHTML = '';
-            
-            if (items.length === 0) {
-                domSidebarList.innerHTML = `<li class="text-gray-400 text-xs p-2 text-center mt-4">空目录</li>`;
-                return;
-            }
-
-            items.forEach(item => {
-                const li = document.createElement('li');
-                li.className = 'p-2 hover:bg-white/10 rounded cursor-pointer transition-colors flex flex-col group';
-                
-                // 格式化时间
-                const formattedDate = item.date !== '1970-01-01T00:00:00Z' 
-                    ? new Date(item.date).toLocaleString('zh-CN', { 
-                        year: 'numeric', month: '2-digit', day: '2-digit', 
-                        hour: '2-digit', minute:'2-digit' 
-                      })
-                    : '未知时间';
-                
-                // 区分图标
-                const icon = item.type === 'dir' ? '📁' : '📄';
-                
-                li.innerHTML = `
-                    <div class="flex items-center space-x-2 w-full">
-                        <span class="text-sm shrink-0">${icon}</span>
-                        <span class="text-[13px] truncate text-gray-200 group-hover:text-white">${item.name}</span>
-                    </div>
-                    <div class="text-[10px] text-gray-500 group-hover:text-gray-300 mt-1 ml-6 truncate">
-                        ${formattedDate}
-                    </div>
-                `;
-                
-                // 若为文件夹，点击进入下一级
-                if (item.type === 'dir') {
-                    li.onclick = () => loadSidebarData(item.path);
-                } else {
-                    // 若为文件，复制完整路径并新页面打开
-                    li.onclick = () => {
-                        const fileUrl = `https://${config.owner}.github.io/${config.repo}/${item.path}`;
-                        // 复制到剪贴板
-                        const el = document.createElement("textarea"); 
-                        el.value = fileUrl; 
-                        document.body.appendChild(el); 
-                        el.select(); 
-                        document.execCommand('copy'); 
-                        document.body.removeChild(el);
-                        
-                        // 显示提示并新页面打开
-                        showMessage(`已复制链接：${fileUrl}`);
-                        window.open(fileUrl, '_blank');
-                    };
-                }
-                
-                domSidebarList.appendChild(li);
-            });
-        }
-        // ====================================================================
-
-    </script>
+    <!-- 引入拆分出来的 JS。保留原背景动效代码所依赖的标签属性 -->
+    <script src="main.js" color="0,195,255" zIndex="99" opacity="1" count="399"></script>
 </body>
 </html>
