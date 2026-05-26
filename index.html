@@ -786,12 +786,28 @@
             return path === '' ? getRootSidebarCacheKey() : path;
         }
 
+        const hiddenProjectDirectoryNames = new Set(['temp', '.github']);
+        const hiddenSidebarDirectoryNames = new Set(['.github']);
+        const hiddenSidebarFileExtensions = new Set(['webp', 'png', 'jpg', 'jpeg', 'bmp', 'heic', 'gif']);
+
+        function getFileExtension(name) {
+            const index = name.lastIndexOf('.');
+            return index === -1 ? '' : name.slice(index + 1).toLowerCase();
+        }
+
         function isVisibleProjectDirectory(item) {
-            return item.type === 'dir' && item.name !== 'temp';
+            return item.type === 'dir' && !hiddenProjectDirectoryNames.has(item.name);
         }
 
         function isRootProjectDirectory(item) {
             return isVisibleProjectDirectory(item) && item.name !== secondaryRootFolder;
+        }
+
+        function isVisibleSidebarItem(item) {
+            if (item.name === '_summary.txt' || item.name === '.DS_Store') return false;
+            if (item.type === 'dir') return !hiddenSidebarDirectoryNames.has(item.name);
+            if (item.type === 'file') return !hiddenSidebarFileExtensions.has(getFileExtension(item.name));
+            return true;
         }
 
         async function fetchPublicProjectManifest() {
@@ -1270,7 +1286,7 @@
                 }
 
                 const data = await fetchGithubContents(path);
-                const targetItems = data.filter(item => item.name !== '_summary.txt' && item.name !== '.DS_Store');
+                const targetItems = data.filter(isVisibleSidebarItem);
 
                 const itemsWithDetails = await addProjectItemDetails(targetItems);
                 sidebarCache[cacheKey] = itemsWithDetails;
