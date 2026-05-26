@@ -22,19 +22,6 @@ const ignoredNames = new Set([
   '_summary.txt'
 ]);
 
-const imageExtensions = new Set([
-  '.apng',
-  '.avif',
-  '.bmp',
-  '.gif',
-  '.ico',
-  '.jpg',
-  '.jpeg',
-  '.png',
-  '.svg',
-  '.webp'
-]);
-
 function ensureDir(dir) {
   fs.mkdirSync(dir, { recursive: true });
 }
@@ -216,12 +203,10 @@ function processPrivateEntry(sourcePath, relativePath = '') {
     if (!entry.isFile()) continue;
 
     const extension = path.extname(entry.name).toLowerCase();
-    if (imageExtensions.has(extension)) continue;
-
     ensureDir(path.dirname(target));
     if (extension === '.html') {
       fs.writeFileSync(target, makeEncryptedPage(fs.readFileSync(source, 'utf8')));
-    } else if (['.css', '.js', '.mjs', '.cjs'].includes(extension)) {
+    } else {
       fs.copyFileSync(source, target);
     }
   }
