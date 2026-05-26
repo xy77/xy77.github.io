@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -176,6 +177,82 @@ function shouldSkip(relativePath, entry) {
   return false;
 }
 
+function toPosixPath(value) {
+  return value.split(path.sep).join('/');
+}
+
+function getPathDate(relativePath, sourcePath) {
+  const posixPath = toPosixPath(relativePath);
+  try {
+    const value = execFileSync('git', ['-C', privateRoot, 'log', '-1', '--format=%cI', '--', posixPath], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    }).trim();
+    if (value) return value;
+  } catch (e) {
+    // Fall back to filesystem metadata when git history is not available.
+  }
+
+  return fs.statSync(sourcePath).mtime.toISOString();
+}
+
+function readFolderSummary(folderPath) {
+  const summaryPath = path.join(folderPath, '_summary.txt');
+  if (!fs.existsSync(summaryPath)) return null;
+  const summary = fs.readFileSync(summaryPath, 'utf8').trim();
+  return summary || null;
+}
+
+function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
+  const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
+  const items = [];
+
+  for (const entry of entries) {
+    const nextRelative = relativePath ? path.join(relativePath, entry.name) : entry.name;
+    if (shouldSkip(nextRelative, entry)) continue;
+
+    const source = path.join(sourcePath, entry.name);
+    if (entry.isDirectory()) {
+      buildProjectManifestTree(source, nextRelative, tree);
+      items.push({
+        type: 'dir',
+        name: entry.name,
+        path: toPosixPath(nextRelative),
+        date: getPathDate(nextRelative, source),
+        summary: readFolderSummary(source) || entry.name
+      });
+      continue;
+    }
+
+    if (!entry.isFile()) continue;
+
+    items.push({
+      type: 'file',
+      name: entry.name,
+      path: toPosixPath(nextRelative),
+      date: getPathDate(nextRelative, source),
+      summary: entry.name
+    });
+  }
+
+  items.sort((a, b) => {
+    const dateDiff = new Date(b.date) - new Date(a.date);
+    if (dateDiff) return dateDiff;
+    return a.name.localeCompare(b.name, 'zh-CN');
+  });
+  tree[toPosixPath(relativePath)] = items;
+  return tree;
+}
+
+function writeProjectManifest() {
+  const manifest = {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    tree: buildProjectManifestTree(privateRoot)
+  };
+  fs.writeFileSync(path.join(outputRoot, 'projects.json'), JSON.stringify(manifest, null, 2));
+}
+
 function copyFunctionalFiles() {
   for (const file of functionalFiles) {
     const source = path.join(publicRoot, file);
@@ -220,3 +297,4 @@ resetDir(outputRoot);
 fs.writeFileSync(path.join(outputRoot, '.nojekyll'), '');
 copyFunctionalFiles();
 processPrivateEntry(privateRoot);
+writeProjectManifest();

@@ -144,6 +144,10 @@
             </div>
             <ul id="sidebar-list" class="space-y-1"></ul>
         </div>
+        <div class="p-3 border-t border-white/20 shrink-0 flex items-center justify-between gap-2">
+            <button id="publish-token-settings-btn" type="button" class="text-xs text-white/75 hover:text-white transition-colors whitespace-nowrap">发布凭据</button>
+            <span id="publish-token-status" class="text-[11px] text-white/40 whitespace-nowrap">未设置</span>
+        </div>
     </div>
 
     <!-- 主容器 -->
@@ -212,21 +216,10 @@
             <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
                 <h2 class="text-lg font-semibold text-gray-800">发布</h2>
             </div>
-            <div class="p-6 space-y-5">
+	            <div class="p-6 space-y-5">
 	                <div>
 	                    <label class="block text-sm font-medium text-gray-700 mb-1">提交密码</label>
 	                    <input type="password" id="publish-password" placeholder="********" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-	                </div>
-
-	                <div>
-	                    <div class="flex items-center justify-between mb-1">
-	                        <label class="block text-sm font-medium text-gray-700">发布凭据</label>
-	                        <label class="flex items-center gap-1 text-xs text-gray-500">
-	                            <input type="checkbox" id="remember-publish-token" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-	                            记住
-	                        </label>
-	                    </div>
-	                    <input type="password" id="publish-token-input" placeholder="GitHub PAT" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
 	                </div>
 
 	                <div>
@@ -276,6 +269,31 @@
         </div>
     </div>
 
+    <!-- 发布凭据弹窗 -->
+    <div id="publish-token-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-[60] backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">发布凭据</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block text-sm font-medium text-gray-700">GitHub PAT</label>
+                        <label class="flex items-center gap-1 text-xs text-gray-500">
+                            <input type="checkbox" id="remember-publish-token" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                            记住
+                        </label>
+                    </div>
+                    <input type="password" id="publish-token-input" placeholder="GitHub PAT" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button id="publish-token-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
+                <button id="publish-token-confirm" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors shadow-md">提交</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 弹窗内错误提示 -->
     <div id="modal-error-dialog" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-[80] backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-red-100">
@@ -300,6 +318,7 @@
             owner: 'xy77', 
             repo: 'zen', 
             publicBaseUrl: 'https://xy77.github.io',
+            projectManifest: 'projects.json',
             branch: 'main' 
         };
 
@@ -310,6 +329,7 @@
         let selectedProjectKey = null;
         let isNewProjectMode = false;
         let sidebarScope = 'all';
+        let publicProjectManifest = null;
         let editor = null;
 
         // 初始化 Monaco Editor 并引入官方中文支持
@@ -451,8 +471,13 @@
 
         const publishModal = document.getElementById('publish-modal');
         const publishPassword = document.getElementById('publish-password');
+        const publishTokenModal = document.getElementById('publish-token-modal');
+        const publishTokenSettingsBtn = document.getElementById('publish-token-settings-btn');
+        const publishTokenStatus = document.getElementById('publish-token-status');
         const publishTokenInput = document.getElementById('publish-token-input');
         const rememberPublishToken = document.getElementById('remember-publish-token');
+        const publishTokenCancel = document.getElementById('publish-token-cancel');
+        const publishTokenConfirm = document.getElementById('publish-token-confirm');
         const projectContainer = document.getElementById('project-container');
         const addProjectBtn = document.getElementById('add-project-btn');
         const newProjectContainer = document.getElementById('new-project-container');
@@ -528,7 +553,7 @@
 
         // --- 核心交互逻辑 ---
         function isDialogPageOpen() {
-            return !publishModal.classList.contains('hidden') || !downloadModal.classList.contains('hidden');
+            return !publishModal.classList.contains('hidden') || !downloadModal.classList.contains('hidden') || !publishTokenModal.classList.contains('hidden');
         }
 
         function showModalError(text) {
@@ -554,7 +579,7 @@
         }
 
         function getPublishToken() {
-            return publishTokenInput.value.trim() || getStoredPublishToken();
+            return getStoredPublishToken();
         }
 
         function savePublishToken() {
@@ -577,6 +602,14 @@
             const sessionToken = sessionStorage.getItem(publishTokenSessionKey) || '';
             publishTokenInput.value = sessionToken || localToken;
             rememberPublishToken.checked = !!localToken && !sessionToken;
+            updatePublishTokenStatus();
+        }
+
+        function updatePublishTokenStatus() {
+            const hasToken = !!getStoredPublishToken();
+            publishTokenStatus.textContent = hasToken ? '已设置' : '未设置';
+            publishTokenStatus.classList.toggle('text-blue-300', hasToken);
+            publishTokenStatus.classList.toggle('text-white/40', !hasToken);
         }
 
         function getShanghaiDateParts() {
@@ -761,9 +794,29 @@
             return isVisibleProjectDirectory(item) && item.name !== secondaryRootFolder;
         }
 
+        async function fetchPublicProjectManifest() {
+            if (publicProjectManifest) return publicProjectManifest;
+
+            const res = await fetch(`${config.publicBaseUrl}/${config.projectManifest}?t=${Date.now()}`, {
+                cache: 'no-store'
+            });
+            if (!res.ok) {
+                throw new Error('请先设置发布凭据，或等待公开项目索引部署完成');
+            }
+            publicProjectManifest = await res.json();
+            return publicProjectManifest;
+        }
+
+        async function fetchPublicManifestContents(path) {
+            const manifest = await fetchPublicProjectManifest();
+            const key = path || '';
+            const items = manifest.tree && manifest.tree[key] ? manifest.tree[key] : [];
+            return items.map(item => ({ ...item }));
+        }
+
         async function fetchGithubContents(path) {
             const token = config.getToken();
-            if (!token) throw new Error('请填写发布凭据');
+            if (!token) return await fetchPublicManifestContents(path);
             const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?t=${Date.now()}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -773,9 +826,9 @@
 
         async function addProjectItemDetails(items) {
             const itemsWithDetails = await Promise.all(items.map(async (item) => {
-                const dateStr = await fetchPathCommitDate(item.path);
-                let summary = item.name;
-                if (item.type === 'dir') {
+                const dateStr = item.date || await fetchPathCommitDate(item.path);
+                let summary = item.summary || item.name;
+                if (item.type === 'dir' && !item.summary) {
                     const fetchedSummary = await fetchFolderSummary(item.path);
                     if (fetchedSummary) summary = fetchedSummary;
                 }
@@ -957,19 +1010,47 @@
             publishExtLabel.textContent = ext;
 
             publishModal.classList.replace('hidden', 'flex');
-            loadPublishTokenState();
+            updatePublishTokenStatus();
             publishPassword.value = ''; 
             fetchFolders();
             setTimeout(() => publishPassword.focus(), 100);
         };
 
-        publishTokenInput.onchange = () => {
-            if (!publishTokenInput.value.trim()) return;
-            savePublishToken();
-            fetchFolders();
-            sidebarCache = {};
-            loadSidebarData('');
+        function openPublishTokenModal() {
+            hideModalError();
+            loadPublishTokenState();
+            publishTokenModal.classList.replace('hidden', 'flex');
+            setTimeout(() => publishTokenInput.focus(), 100);
+        }
+
+        function closePublishTokenModal() {
+            publishTokenModal.classList.replace('flex', 'hidden');
+        }
+
+        publishTokenSettingsBtn.onclick = openPublishTokenModal;
+        publishTokenCancel.onclick = closePublishTokenModal;
+        publishTokenModal.onclick = (e) => {
+            if (e.target === publishTokenModal) closePublishTokenModal();
         };
+
+        publishTokenConfirm.onclick = () => {
+            const token = savePublishToken();
+            if (!token) return showMessage('请填写发布凭据', true);
+
+            closePublishTokenModal();
+            publicProjectManifest = null;
+            sidebarCache = {};
+            updatePublishTokenStatus();
+            if (!publishModal.classList.contains('hidden')) fetchFolders();
+            loadSidebarData('');
+            showMessage('发布凭据已保存');
+        };
+
+        publishTokenInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') publishTokenConfirm.click();
+        });
+
+        updatePublishTokenStatus();
 
         addProjectBtn.onclick = () => {
             isNewProjectMode = true;
@@ -997,9 +1078,9 @@
                 return showMessage('密码错误', true);
             }
 
-            const token = savePublishToken();
+            const token = getPublishToken();
             if (!token) {
-                return showMessage('请填写发布凭据', true);
+                return showMessage('请先设置发布凭据', true);
             }
             const folderName = isNewProjectMode ? newProjectName.value.trim() : selectedFolder;
             const selectedFolderMeta = folders.find(f => f.key === selectedProjectKey);
