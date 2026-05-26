@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="ico.svg" type="image/svg+xml">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <title>HTML 预览</title>
+    <!-- 引入权限验证逻辑 -->
+    <script src="auth.js"></script>
+    <script>
+        // 页面载入时立即执行检查
+        if (typeof checkAuth === 'function') {
+            checkAuth();
+        }
+    </script>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Monaco Editor 加载器 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <style>
+        .folder-btn-active {
+            border-color: #1890ff !important;
+            background-color: #1890ff !important;
+            color: white !important;
+            box-shadow: 0 4px 6px -1px rgba(24, 144, 255, 0.2);
+        }
+        /* 编辑器 */
+        #editor-container {
+            display: flex;
+            background-color: #ffffff; 
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            position: relative;
+            min-height: 0;
+            flex-grow: 1;
+        }
+        /* Monaco Editor 容器样式 */
+        #editor {
+            width: 100%;
+            height: 100%;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+        .switch input { 
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #1890ff;
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #1890ff;
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        /* 侧边栏滚动条样式 */
+        #github-sidebar ::-webkit-scrollbar {
+            width: 4px;
+        }
+        #github-sidebar ::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .sidebar-scope-btn {
+            padding: 0.18rem 0.45rem;
+            color: rgba(255, 255, 255, 0.75);
+            line-height: 1.2;
+            transition: background-color 0.2s, color 0.2s;
+            width: 3rem;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .sidebar-scope-btn-active {
+            background-color: #1890ff;
+            color: white;
+        }
+        .sidebar-project-scope-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1rem;
+            height: 1rem;
+            border-radius: 9999px;
+            background-color: rgba(24, 144, 255, 0.6);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .sidebar-project-scope-badge-2 {
+            background-color: rgba(18, 163, 74, 0.8);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
+
+    <!-- ========== 左侧遮罩和 ========== -->
+    <div id="sidebar-trigger" class="fixed left-0 top-0 w-6 h-screen z-[99]"></div>
+    <div id="github-sidebar" class="fixed left-0 top-0 w-[12.5vw] h-screen bg-black z-[100] transition-transform duration-300 -translate-x-full text-white overflow-hidden shadow-2xl flex flex-col font-sans">
+        <div class="p-4 border-b border-white/20 flex items-center bg-black z-10 shrink-0">
+            <button id="sidebar-back-btn" class="hidden text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors whitespace-nowrap mr-3">&lt; 返回</button>
+            <h3 id="sidebar-title" class="font-bold text-sm truncate flex-grow">项目列表</h3>
+            <div id="sidebar-scope-control" class="ml-2 flex overflow-hidden rounded-md border border-white/20 text-sm shrink-0">
+                <button type="button" class="sidebar-scope-btn sidebar-scope-btn-active" data-sidebar-scope="all">全部</button>
+                <button type="button" class="sidebar-scope-btn border-l border-white/20" data-sidebar-scope="1">1</button>
+                <button type="button" class="sidebar-scope-btn border-l border-white/20" data-sidebar-scope="2">2</button>
+            </div>
+        </div>
+        <div id="sidebar-content" class="p-2 flex-grow overflow-y-auto relative">
+            <div id="sidebar-loading" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-transparent z-20">
+                <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span class="text-[12px] mt-2 text-gray-300">加载中...</span>
+            </div>
+            <ul id="sidebar-list" class="space-y-1"></ul>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="bg-white w-[75vw] h-[85vh] rounded-xl shadow-lg flex flex-col overflow-hidden border border-gray-100">
+        <!-- 主体内容区 -->
+        <div class="flex-grow flex flex-col p-6 space-y-4 min-h-0">
+            <!-- 编辑器 -->
+            <div id="editor-container" class="transition-shadow focus-within:ring-2 focus-within:ring-blue-500">
+                <div id="editor"></div>
+            </div>
+
+            <!-- 消息提示区 -->
+            <div id="status-message" class="hidden text-sm p-3 rounded-lg animate-pulse"></div>
+
+            <!-- 按钮区 -->
+            <div class="flex items-center justify-end pt-2 space-x-4 shrink-0">
+                <button 
+                    id="publish-btn" 
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                >
+                    发布
+                </button>
+
+                <button 
+                    id="download-btn" 
+                    class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
+                >
+                    下载
+                </button>
+
+                <button 
+                    id="preview-btn" 
+                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                >
+                    预览
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 下载配置弹窗 -->
+    <div id="download-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-[60] backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">下载</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
+                    <div class="flex items-center">
+                        <input type="text" id="download-filename" placeholder="请输入文件名，仅字母和数字" class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
+                        <span id="download-ext-label" class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button id="download-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
+                <button id="download-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">确认下载</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 发布配置弹窗 -->
+    <div id="publish-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">发布</h2>
+            </div>
+            <div class="p-6 space-y-5">
+	                <div>
+	                    <label class="block text-sm font-medium text-gray-700 mb-1">提交密码</label>
+	                    <input type="password" id="publish-password" placeholder="********" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+	                </div>
+
+	                <div>
+	                    <div class="flex items-center justify-between mb-1">
+	                        <label class="block text-sm font-medium text-gray-700">发布凭据</label>
+	                        <label class="flex items-center gap-1 text-xs text-gray-500">
+	                            <input type="checkbox" id="remember-publish-token" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+	                            记住
+	                        </label>
+	                    </div>
+	                    <input type="password" id="publish-token-input" placeholder="GitHub PAT" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+	                </div>
+
+	                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
+                    <div class="flex items-center">
+                        <input type="text" id="file-name-input" placeholder="" class="flex-grow p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
+                        <span id="publish-ext-label" class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
+                    </div>
+                </div>
+
+                <!-- 项目选择 -->
+                <div>
+                    <div class="flex items-center gap-4 mb-3">
+                        <label class="block text-sm font-medium text-gray-700">选择项目</label>
+                        <button id="add-project-btn" class="text-xs text-green-600 hover:underline">新增项目</button>
+                    </div>
+                    <div id="project-container" class="flex flex-wrap gap-2 mb-3 max-h-[9rem] overflow-y-auto p-1">
+                        <span class="text-sm text-gray-400">正在获取项目列表...</span>
+                    </div>
+                </div>
+
+                <!-- 新增项目输入 -->
+                <div id="new-project-container" class="hidden border-t pt-4 space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">目录</label>
+                        <input type="text" id="new-project-name" placeholder="仅限字母数字" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">名称</label>
+                        <input type="text" id="new-project-summary" placeholder="显示在左侧列表里的名称" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- 加密开关 -->
+                <div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <span class="text-sm font-medium text-gray-700">加密</span>
+                    <label class="switch">
+                        <input type="checkbox" id="encryption-switch" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button id="modal-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
+                <button id="modal-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">发布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗内错误提示 -->
+    <div id="modal-error-dialog" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-[80] backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-red-100">
+            <div class="bg-red-50 px-6 py-4 border-b border-red-100">
+                <h2 class="text-lg font-semibold text-red-700">提示</h2>
+            </div>
+            <div class="px-6 py-5">
+                <p id="modal-error-message" class="text-sm leading-6 text-gray-700"></p>
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end">
+                <button id="modal-error-close" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors shadow-md">好的</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 核心配置
+        const config = {
+            getToken: function() {
+                return getPublishToken();
+            },
+            owner: 'xy77', 
+            repo: 'zen', 
+            publicBaseUrl: 'https://xy77.github.io',
+            branch: 'main' 
+        };
+
+        // 状态管理
+        const secondaryRootFolder = '2';
+        let folders = [];
+        let selectedFolder = null;
+        let selectedProjectKey = null;
+        let isNewProjectMode = false;
+        let sidebarScope = 'all';
+        let editor = null;
+
+        // 初始化 Monaco Editor 并引入官方中文支持
+        require.config({ 
+            paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' },
+            'vs/nls': { availableLanguages: { '*': 'zh-cn' } }
+        });
+        require(['vs/editor/editor.main'], function() {
+            // 从本地恢复内容
+            const savedContent = localStorage.getItem('zen_editor_content') || '';
+            
+            editor = monaco.editor.create(document.getElementById('editor'), {
+                value: savedContent,
+                language: 'html',
+                theme: 'vs', // 浅色主题
+                automaticLayout: true,
+                minimap: { enabled: true }, // 默认开启缩略图
+                fontSize: 16,
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                scrollBeyondLastLine: false,
+                roundedSelection: true,
+                renderWhitespace: "none"
+            });
+
+            // 缩略图状态
+            const minimapEnabledKey = editor.createContextKey('minimapEnabled', true);
+
+            // 隐藏缩略图
+            editor.addAction({
+                id: 'hide-minimap-cn',
+                label: '隐藏缩略图',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 1,
+                precondition: 'minimapEnabled',
+                run: function(ed) {
+                    ed.updateOptions({ minimap: { enabled: false } });
+                    minimapEnabledKey.set(false);
+                }
+            });
+
+            // 显示缩略图
+            editor.addAction({
+                id: 'show-minimap-cn',
+                label: '显示缩略图',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 2,
+                precondition: '!minimapEnabled',
+                run: function(ed) {
+                    ed.updateOptions({ minimap: { enabled: true } });
+                    minimapEnabledKey.set(true);
+                }
+            });
+
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
+                previewBtn.click();
+            });
+            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, function() {
+                downloadBtn.click();
+            });
+
+            // 监听键盘缩放事件
+            window.addEventListener('keydown', function(e) {
+                if (e.ctrlKey || e.metaKey) {
+                    const currentSize = editor.getOption(monaco.editor.EditorOption.fontSize);
+                    
+                    if (e.key === '=' || e.key === '+') {
+                        e.preventDefault();
+                        // 限制最大字号为 44px
+                        editor.updateOptions({ fontSize: Math.min(44, currentSize + 2) });
+                    } 
+                    else if (e.key === '-') {
+                        e.preventDefault();
+                        editor.updateOptions({ fontSize: Math.max(8, currentSize - 2) });
+                    } 
+                    else if (e.key === '0') {
+                        e.preventDefault();
+                        editor.updateOptions({ fontSize: 16 });
+                    }
+                }
+            }, true);
+
+            editor.addAction({
+                id: 'clear-all-and-paste',
+                label: '清空所有并粘贴',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 3, 
+                run: async function(ed) {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        ed.setValue(text || '');
+                        localStorage.setItem('zen_editor_content', text || '');
+                    } catch (err) {
+                        ed.setValue('');
+                        localStorage.setItem('zen_editor_content', '');
+                        showMessage('无法直接访问剪贴板，已清空内容。请手动粘贴。', true);
+                    }
+                }
+            });
+
+            editor.addAction({
+                id: 'clear-all-content',
+                label: '清空所有',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 4,
+                run: function(ed) {
+                    ed.setValue('');
+                    localStorage.setItem('zen_editor_content', '');
+                }
+            });
+            
+            // 监听编辑器内容变化并实时保存到 localStorage
+            editor.onDidChangeModelContent(() => {
+                const val = editor.getValue();
+                localStorage.setItem('zen_editor_content', val);
+                // 动态调整编辑器语言模式
+                const type = detectType(val);
+                if (type === 'markdown') {
+                    monaco.editor.setModelLanguage(editor.getModel(), 'markdown');
+                } else if (type === 'json') {
+                    monaco.editor.setModelLanguage(editor.getModel(), 'json');
+                } else {
+                    monaco.editor.setModelLanguage(editor.getModel(), 'html');
+                }
+            });
+
+            // 编辑器加载完成后初始化数据
+            loadSidebarData('');
+            editor.focus();
+
+            // 初始化拖拽监听
+            initDragAndDrop();
+        });
+
+        // 元素获取
+        const previewBtn = document.getElementById('preview-btn');
+        const publishBtn = document.getElementById('publish-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const statusMessage = document.getElementById('status-message');
+
+        const publishModal = document.getElementById('publish-modal');
+        const publishPassword = document.getElementById('publish-password');
+        const publishTokenInput = document.getElementById('publish-token-input');
+        const rememberPublishToken = document.getElementById('remember-publish-token');
+        const projectContainer = document.getElementById('project-container');
+        const addProjectBtn = document.getElementById('add-project-btn');
+        const newProjectContainer = document.getElementById('new-project-container');
+        const newProjectName = document.getElementById('new-project-name');
+        const newProjectSummary = document.getElementById('new-project-summary'); 
+        const encryptionSwitch = document.getElementById('encryption-switch');
+        const fileNameInput = document.getElementById('file-name-input');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalConfirm = document.getElementById('modal-confirm');
+        const publishExtLabel = document.getElementById('publish-ext-label');
+
+        // 下载相关元素
+        const downloadModal = document.getElementById('download-modal');
+        const downloadFilename = document.getElementById('download-filename');
+        const downloadCancel = document.getElementById('download-cancel');
+        const downloadConfirm = document.getElementById('download-confirm');
+        const downloadExtLabel = document.getElementById('download-ext-label');
+        const modalErrorDialog = document.getElementById('modal-error-dialog');
+        const modalErrorMessage = document.getElementById('modal-error-message');
+        const modalErrorClose = document.getElementById('modal-error-close');
+
+        // 重构内容类型检测，使 JSON 始终高亮错误
+        function detectType(content) {
+            const trimmed = content.trim();
+            if (!trimmed) return 'html';
+            
+            // 如果是以 { 或 [ 开头，则强制识别为 JSON，以便 Monaco 进行语法高亮和错误提示
+            if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                return 'json';
+            }
+
+            if (trimmed.includes('<html') || trimmed.includes('<!DOCTYPE')) return 'html';
+            if (isReactCode(trimmed)) return 'react';
+            
+            return 'markdown';
+        }
+
+        function isReactCode(content) {
+            const hasReactImport = /(?:import|from)\s+[^;\n]*['"](?:react|react-dom\/client|lucide-react)['"]/.test(content);
+            const hasDefaultExport = /\bexport\s+default\b/.test(content);
+            const hasComponentDeclaration = /\b(?:function|class|const|let|var)\s+[A-Z][A-Za-z0-9_$]*\b/.test(content);
+            const hasJsx = /<[A-Za-z][A-Za-z0-9_.:-]*(?:\s|>|\/)/.test(content);
+            return hasReactImport || hasDefaultExport || (hasComponentDeclaration && hasJsx);
+        }
+
+        function getReactComponentName(content) {
+            const namedDefault = content.match(/\bexport\s+default\s+(?:async\s+)?(?:function|class)\s+([A-Z][A-Za-z0-9_$]*)\b/);
+            if (namedDefault) return namedDefault[1];
+
+            const declaredComponent = content.match(/\b(?:function|class|const|let|var)\s+(App|[A-Z][A-Za-z0-9_$]*)\b/);
+            if (declaredComponent) return declaredComponent[1];
+
+            const defaultIdentifier = content.match(/\bexport\s+default\s+([A-Z][A-Za-z0-9_$]*)\s*;?\s*$/m);
+            if (defaultIdentifier) return defaultIdentifier[1];
+
+            return 'App';
+        }
+
+        function getReactPreviewSource(content) {
+            if (/\bexport\s+default\b/.test(content)) return content;
+            if (/\b(?:createRoot|ReactDOM\.render)\s*\(/.test(content)) return content;
+            return `${content.trim()}\n\nexport default ${getReactComponentName(content)};`;
+        }
+
+        function toInlineScriptString(value) {
+            return JSON.stringify(value).replace(/<\/script/gi, '<\\/script');
+        }
+
+        // 获取编辑器内容的辅助函数
+        function getFullCode() {
+            return editor ? editor.getValue() : '';
+        }
+
+        // --- 核心交互逻辑 ---
+        function isDialogPageOpen() {
+            return !publishModal.classList.contains('hidden') || !downloadModal.classList.contains('hidden');
+        }
+
+        function showModalError(text) {
+            modalErrorMessage.textContent = text;
+            modalErrorDialog.classList.replace('hidden', 'flex');
+            setTimeout(() => modalErrorClose.focus(), 0);
+        }
+
+        function hideModalError() {
+            modalErrorDialog.classList.replace('flex', 'hidden');
+        }
+
+        modalErrorClose.onclick = hideModalError;
+        modalErrorDialog.onclick = (e) => {
+            if (e.target === modalErrorDialog) hideModalError();
+        };
+
+        const publishTokenLocalKey = 'zen_publish_token';
+        const publishTokenSessionKey = 'zen_publish_token_session';
+
+        function getStoredPublishToken() {
+            return sessionStorage.getItem(publishTokenSessionKey) || localStorage.getItem(publishTokenLocalKey) || '';
+        }
+
+        function getPublishToken() {
+            return publishTokenInput.value.trim() || getStoredPublishToken();
+        }
+
+        function savePublishToken() {
+            const token = publishTokenInput.value.trim();
+            if (!token) return '';
+
+            if (rememberPublishToken.checked) {
+                localStorage.setItem(publishTokenLocalKey, token);
+                sessionStorage.removeItem(publishTokenSessionKey);
+            } else {
+                sessionStorage.setItem(publishTokenSessionKey, token);
+                localStorage.removeItem(publishTokenLocalKey);
+            }
+
+            return token;
+        }
+
+        function loadPublishTokenState() {
+            const localToken = localStorage.getItem(publishTokenLocalKey) || '';
+            const sessionToken = sessionStorage.getItem(publishTokenSessionKey) || '';
+            publishTokenInput.value = sessionToken || localToken;
+            rememberPublishToken.checked = !!localToken && !sessionToken;
+        }
+
+        function getShanghaiDateParts() {
+            const parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'Asia/Shanghai',
+                month: 'numeric',
+                day: 'numeric'
+            }).formatToParts(new Date());
+            return {
+                month: parts.find(part => part.type === 'month').value,
+                day: parts.find(part => part.type === 'day').value
+            };
+        }
+
+        function showMessage(text, isError = false) {
+            if (isError && isDialogPageOpen()) {
+                showModalError(text);
+                return;
+            }
+
+            statusMessage.textContent = text;
+            statusMessage.className = `text-sm p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            statusMessage.classList.remove('hidden');
+            setTimeout(() => statusMessage.classList.add('hidden'), 6000);
+        }
+
+        // 获取编辑器内容并智能转换为预览用 HTML 的辅助函数
+        function getFormattedCode() {
+            let content = getFullCode();
+            const type = detectType(content);
+
+            if (type === 'react') {
+                const reactSource = getReactPreviewSource(content);
+                return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预览</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <script type="importmap">
+        {
+            "imports": {
+                "react": "https://esm.sh/react@18.2.0",
+                "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+                "react/jsx-runtime": "https://esm.sh/react@18.2.0/jsx-runtime",
+                "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+            }
+        }
+    <\/script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
+    <style>
+        #zen-preview-error {
+            display: none;
+            margin: 24px;
+            padding: 16px;
+            border-radius: 8px;
+            background: #fee2e2;
+            color: #991b1b;
+            font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <pre id="zen-preview-error"></pre>
+    <script type="module">
+        import * as __ZenReact from 'react';
+        import { createRoot as __ZenCreateRoot } from 'react-dom/client';
+
+        const __ZenSource = ${toInlineScriptString(reactSource)};
+        const __ZenErrorBox = document.getElementById('zen-preview-error');
+
+        try {
+            const __ZenCompiled = Babel.transform(__ZenSource, {
+                filename: 'preview.tsx',
+                sourceType: 'module',
+                presets: [
+                    ['react', { runtime: 'automatic' }],
+                    ['typescript', { isTSX: true, allExtensions: true }]
+                ]
+            }).code;
+            const __ZenUrl = URL.createObjectURL(new Blob([__ZenCompiled], { type: 'text/javascript' }));
+            const __ZenModule = await import(__ZenUrl);
+            URL.revokeObjectURL(__ZenUrl);
+
+            const __ZenRootElement = document.getElementById('root');
+            const __ZenComponent = __ZenModule.default;
+            if (__ZenComponent && __ZenRootElement) {
+                __ZenCreateRoot(__ZenRootElement).render(__ZenReact.createElement(__ZenComponent));
+            } else if (__ZenRootElement && !__ZenRootElement.childNodes.length) {
+                throw new Error('未找到默认导出的 React 组件');
+            }
+        } catch (error) {
+            __ZenErrorBox.style.display = 'block';
+            __ZenErrorBox.textContent = error && error.stack ? error.stack : String(error);
+            console.error(error);
+        }
+    <\/script>
+</body>
+</html>`;
+            } else if (type === 'markdown') {
+                const escapedMd = content.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
+                return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Markdown 预览</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css"><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"><\/script><style>.markdown-body { box-sizing: border-box; min-width: 200px; max-width: 980px; margin: 0 auto; padding: 45px; } @media (max-width: 767px) { .markdown-body { padding: 15px; } }</style></head><body class="markdown-body"><div id="content"></div><script>document.getElementById('content').innerHTML = marked.parse(\`${escapedMd}\`);<\/script></body></html>`;
+            }
+            
+            return content;
+        }
+
+        // 初始化拖拽文件功能
+        function initDragAndDrop() {
+            const dropZone = window;
+            dropZone.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); });
+            dropZone.addEventListener('dragleave', (e) => { e.preventDefault(); e.stopPropagation(); });
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault(); e.stopPropagation();
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const content = event.target.result;
+                        if (editor) {
+                            editor.setValue(content);
+                            showMessage(`成功载入本地文件: ${file.name}`);
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+            });
+        }
+
+        // 预览按钮逻辑 (如果格式错误则提示)
+        previewBtn.onclick = () => {
+            const content = getFullCode();
+            if (!content.trim()) return showMessage('代码为空', true);
+
+            const type = detectType(content);
+            
+            if (type === 'json') {
+                try {
+                    const obj = JSON.parse(content);
+                    const formatted = JSON.stringify(obj, null, 4);
+                    editor.setValue(formatted);
+                    showMessage('JSON 已格式化');
+                    return;
+                } catch (e) {
+                    // 格式不正确时，Monaco 已经通过红色波浪线高亮了位置，此处给出文字提示
+                    showMessage('JSON 格式错误，请根据编辑器红线提示修正后再试', true);
+                    return;
+                }
+            }
+
+            let htmlContent = getFormattedCode();
+            if (htmlContent.includes('<title>')) {
+                const injectIcon = '\n\t<link rel="icon" href="https://xy77.github.io/ico.svg" type="image/svg+xml">';
+                htmlContent = htmlContent.replace(/(<title>.*?<\/title>)/i, `$1${injectIcon}`);
+            }
+
+            try {
+                localStorage.setItem('zen_preview_html', htmlContent);
+                window.open('preview.html', '_blank');
+            } catch (e) {
+                showMessage('预览失败：内容过长', true);
+            }
+        };
+
+        function getRootSidebarCacheKey(scope = sidebarScope) {
+            return `__root_projects__:${scope}`;
+        }
+
+        function getSidebarCacheKey(path) {
+            return path === '' ? getRootSidebarCacheKey() : path;
+        }
+
+        function isVisibleProjectDirectory(item) {
+            return item.type === 'dir' && item.name !== 'temp';
+        }
+
+        function isRootProjectDirectory(item) {
+            return isVisibleProjectDirectory(item) && item.name !== secondaryRootFolder;
+        }
+
+        async function fetchGithubContents(path) {
+            const token = config.getToken();
+            if (!token) throw new Error('请填写发布凭据');
+            const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?t=${Date.now()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('读取目录失败');
+            return await res.json();
+        }
+
+        async function addProjectItemDetails(items) {
+            const itemsWithDetails = await Promise.all(items.map(async (item) => {
+                const dateStr = await fetchPathCommitDate(item.path);
+                let summary = item.name;
+                if (item.type === 'dir') {
+                    const fetchedSummary = await fetchFolderSummary(item.path);
+                    if (fetchedSummary) summary = fetchedSummary;
+                }
+                return {
+                    ...item,
+                    key: item.key || `${item.projectScope || '1'}:${item.name}`,
+                    publishName: item.publishName || item.name,
+                    date: dateStr || '1970-01-01T00:00:00Z',
+                    summary: summary
+                };
+            }));
+
+            itemsWithDetails.sort((a, b) => new Date(b.date) - new Date(a.date));
+            return itemsWithDetails;
+        }
+
+        async function fetchRootProjectItems(scope = 'all') {
+            const rootData = await fetchGithubContents('');
+            let targetItems = [];
+
+            if (scope !== '2') {
+                targetItems = targetItems.concat(
+                    rootData
+                        .filter(isRootProjectDirectory)
+                        .map(item => ({
+                            ...item,
+                            projectScope: '1',
+                            publishName: item.name,
+                            key: `1:${item.name}`
+                        }))
+                );
+            }
+
+            if (scope !== '1') {
+                const secondRoot = rootData.find(item => item.type === 'dir' && item.name === secondaryRootFolder);
+                if (secondRoot) {
+                    const secondData = await fetchGithubContents(secondaryRootFolder);
+                    targetItems = targetItems.concat(
+                        secondData
+                            .filter(isVisibleProjectDirectory)
+                            .map(item => ({
+                                ...item,
+                                projectScope: '2',
+                                publishName: item.name,
+                                key: `2:${item.name}`,
+                                parentPathOverride: ''
+                            }))
+                    );
+                }
+            }
+
+            return await addProjectItemDetails(targetItems);
+        }
+
+        function toPublishFolder(item) {
+            return {
+                name: item.publishName || item.name,
+                path: item.path,
+                summary: item.summary || item.name,
+                date: item.date,
+                key: item.key || `${item.projectScope || '1'}:${item.name}`,
+                projectScope: item.projectScope || '1'
+            };
+        }
+
+        async function fetchFolders() {
+            try {
+                const cachedAllProjects = sidebarCache[getRootSidebarCacheKey('all')];
+                if (cachedAllProjects && cachedAllProjects.length > 0) {
+                    folders = cachedAllProjects.map(toPublishFolder);
+                    renderProjectButtons(10);
+                    return;
+                }
+
+                projectContainer.innerHTML = '<span class="text-sm text-gray-400">正在获取项目详情...</span>';
+                const itemsWithDetails = await fetchRootProjectItems('all');
+                sidebarCache[getRootSidebarCacheKey('all')] = itemsWithDetails;
+                folders = itemsWithDetails.map(toPublishFolder);
+                renderProjectButtons(10);
+            } catch (err) {
+                projectContainer.innerHTML = `<span class="text-sm text-red-500">${err.message || '无法连接到 GitHub'}</span>`;
+            }
+        }
+
+        function renderProjectButtons(limit = 10) {
+            projectContainer.innerHTML = '';
+            const list = limit ? folders.slice(0, limit) : folders;
+            list.forEach(f => {
+                const btn = document.createElement('button');
+                btn.className = `px-3 py-1.5 text-sm border border-gray-200 rounded-md bg-white hover:border-blue-400 transition-all ${selectedProjectKey === f.key && !isNewProjectMode ? 'folder-btn-active' : ''}`;
+                btn.textContent = f.summary;
+                btn.onclick = () => {
+                    selectedFolder = f.name;
+                    selectedProjectKey = f.key;
+                    isNewProjectMode = false;
+                    newProjectContainer.classList.add('hidden');
+                    renderProjectButtons(limit);
+                };
+                projectContainer.appendChild(btn);
+            });
+            
+            if (limit && folders.length > limit) {
+                const moreBtn = document.createElement('button');
+                moreBtn.className = "px-3 py-1.5 text-sm border-gray-300 text-blue-600 rounded-md bg-white hover:border-blue-400 transition-all";
+                moreBtn.textContent = "查看更多";
+                moreBtn.onclick = (e) => {
+                    e.preventDefault();
+                    renderProjectButtons(null);
+                };
+                projectContainer.appendChild(moreBtn);
+            }
+        }
+
+        // 下载按钮默认后缀
+        downloadBtn.onclick = () => {
+            const content = getFullCode();
+            if (!content.trim()) return showMessage('不能为空', true);
+            
+            const type = detectType(content);
+            let ext = '.html';
+            if (type === 'markdown') ext = '.md';
+            else if (type === 'json') ext = '.json';
+            
+            downloadExtLabel.textContent = ext;
+            
+            downloadModal.classList.replace('hidden', 'flex');
+            setTimeout(() => downloadFilename.focus(), 100);
+        };
+
+        downloadCancel.onclick = () => {
+            downloadModal.classList.replace('flex', 'hidden');
+            downloadFilename.value = '';
+        };
+
+        downloadConfirm.onclick = () => {
+            const content = getFullCode();
+            const type = detectType(content);
+            
+            let ext = '.html';
+            if (type === 'markdown') ext = '.md';
+            else if (type === 'json') ext = '.json';
+
+            const name = downloadFilename.value.trim().replace(/[^a-zA-Z0-9.+\-]/g, '') || 'index';
+            const finalName = name + ext;
+            
+            const finalContent = (type === 'markdown' || type === 'json') ? content : getFormattedCode(); 
+            
+            try {
+                let mimeType = 'text/html';
+                if (type === 'markdown') mimeType = 'text/markdown';
+                else if (type === 'json') mimeType = 'application/json';
+
+                const blob = new Blob([finalContent], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = finalName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                downloadModal.classList.replace('flex', 'hidden');
+                downloadFilename.value = '';
+                showMessage(`正在下载：${finalName}`);
+            } catch (e) {
+                showMessage('下载失败', true);
+            }
+        };
+
+        publishBtn.onclick = () => {
+            const content = getFullCode();
+            if (!content.trim()) return showMessage('不能为空', true);
+            
+            const type = detectType(content);
+            let ext = '.html';
+            if (type === 'markdown') ext = '.md';
+            else if (type === 'json') ext = '.json';
+
+            publishExtLabel.textContent = ext;
+
+            publishModal.classList.replace('hidden', 'flex');
+            loadPublishTokenState();
+            publishPassword.value = ''; 
+            fetchFolders();
+            setTimeout(() => publishPassword.focus(), 100);
+        };
+
+        publishTokenInput.onchange = () => {
+            if (!publishTokenInput.value.trim()) return;
+            savePublishToken();
+            fetchFolders();
+            sidebarCache = {};
+            loadSidebarData('');
+        };
+
+        addProjectBtn.onclick = () => {
+            isNewProjectMode = true;
+            selectedFolder = null;
+            selectedProjectKey = null;
+            newProjectContainer.classList.remove('hidden');
+            newProjectSummary.value = ''; 
+            renderProjectButtons(10);
+            newProjectName.focus();
+        };
+
+        modalCancel.onclick = () => {
+            publishModal.classList.replace('flex', 'hidden');
+            fileNameInput.value = '';
+        };
+
+        modalConfirm.onclick = async () => {
+            const inputPass = publishPassword.value.trim();
+            const { month, day } = getShanghaiDateParts();
+            const datePassword = day + day;
+            const monthDayPassword = `${month}${day}`;
+            const publishScope = inputPass === datePassword ? '1' : (inputPass === monthDayPassword ? '2' : null);
+            
+            if (!publishScope) {
+                return showMessage('密码错误', true);
+            }
+
+            const token = savePublishToken();
+            if (!token) {
+                return showMessage('请填写发布凭据', true);
+            }
+            const folderName = isNewProjectMode ? newProjectName.value.trim() : selectedFolder;
+            const selectedFolderMeta = folders.find(f => f.key === selectedProjectKey);
+            const fileName = fileNameInput.value.trim().replace(/[^a-zA-Z0-9.+\-]/g, '');
+
+            if (!folderName || !fileName) return showMessage('请确保目录名和文件名完整', true);
+            if (!isNewProjectMode && selectedFolderMeta && selectedFolderMeta.projectScope !== publishScope) {
+                return showMessage('密码与项目不匹配，请重新选择项目', true);
+            }
+            const folder = publishScope === '2' ? `${secondaryRootFolder}/${folderName}` : folderName;
+
+            const content = getFullCode();
+            const type = detectType(content);
+            
+            let ext = '.html';
+            if (type === 'markdown') ext = '.md';
+            else if (type === 'json') ext = '.json';
+            
+            let rawContent = (type === 'markdown' || type === 'json') ? content : getFormattedCode(); 
+            
+            if (type !== 'markdown' && type !== 'json' && rawContent.includes('<title>')) {
+                const assetPrefix = publishScope === '2' ? '../../' : '../';
+                let injectCode = `\n\t<link rel="icon" href="${assetPrefix}ico.svg" type="image/svg+xml">`;
+                if (encryptionSwitch.checked) {
+                    injectCode += `\n<!-- 引入权限验证逻辑 -->\n\t<script src="${assetPrefix}auth.js"><\/script>\n\t<script>\n\t\t// 页面载入时立即执行检查\n\t\tif (typeof checkAuth === 'function') {\n\t\t\tcheckAuth();\n\t\t}\n\t<\/script>`;
+                }
+                rawContent = rawContent.replace(/(<title>.*?<\/title>)/i, `$1${injectCode}`);
+            }
+
+            const path = `${folder}/${fileName}${ext}`;
+
+            publishModal.classList.replace('flex', 'hidden');
+            publishBtn.disabled = true;
+            showMessage('正在推送...');
+
+            try {
+                if (isNewProjectMode) {
+                    const summaryText = newProjectSummary.value.trim();
+                    if (summaryText) {
+                        const summaryPath = `${folder}/_summary.txt`;
+                        try {
+                            await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${summaryPath}`, {
+                                method: 'PUT',
+                                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    message: `add summary for ${folder}`,
+                                    content: btoa(unescape(encodeURIComponent(summaryText))),
+                                    branch: config.branch
+                                })
+                            });
+                        } catch (err) { console.warn('保存摘要失败', err); }
+                    }
+                }
+
+                let sha = null;
+                const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}?ref=${config.branch}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (getRes.ok) sha = (await getRes.json()).sha;
+
+                const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: `deploy: ${path}`,
+                        content: btoa(unescape(encodeURIComponent(rawContent))),
+                        sha: sha,
+                        branch: config.branch
+                    })
+                });
+
+                if (putRes.ok) {
+                    const url = `${config.publicBaseUrl}/${path}`;
+                    const el = document.createElement("textarea"); el.value = url; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+                    showMessage(`发布成功！已复制链接：${url}`);
+                    fileNameInput.value = '';
+                } else throw new Error('推送失败，请检查仓库权限');
+            } catch (e) {
+                showMessage(e.message, true);
+            } finally {
+                publishBtn.disabled = false;
+                fileNameInput.value = '';
+            }
+        };
+
+        // ================== 左侧目录树遮罩交互逻辑 ==================
+        const domSidebarTrigger = document.getElementById('sidebar-trigger');
+        const domGithubSidebar = document.getElementById('github-sidebar');
+        const domSidebarList = document.getElementById('sidebar-list');
+        const domSidebarTitle = document.getElementById('sidebar-title');
+        const domSidebarBackBtn = document.getElementById('sidebar-back-btn');
+        const domSidebarLoading = document.getElementById('sidebar-loading');
+        const domSidebarScopeControl = document.getElementById('sidebar-scope-control');
+        const domSidebarScopeBtns = Array.from(document.querySelectorAll('[data-sidebar-scope]'));
+
+        let sidebarHideTimer = null;
+        let sidebarCache = {}; 
+        let pathNameMap = { '': '项目列表' }; 
+        let pathParentMap = {};
+
+        function renderSidebarScopeControl() {
+            domSidebarScopeBtns.forEach(btn => {
+                btn.classList.toggle('sidebar-scope-btn-active', btn.dataset.sidebarScope === sidebarScope);
+            });
+        }
+
+        domSidebarScopeBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const nextScope = btn.dataset.sidebarScope;
+                if (nextScope === sidebarScope) return;
+                sidebarScope = nextScope;
+                renderSidebarScopeControl();
+                loadSidebarData('');
+            });
+        });
+
+        domSidebarTrigger.addEventListener('mouseenter', () => {
+            clearTimeout(sidebarHideTimer);
+            domGithubSidebar.classList.remove('-translate-x-full');
+        });
+
+        domGithubSidebar.addEventListener('mouseenter', () => { clearTimeout(sidebarHideTimer); });
+
+        domGithubSidebar.addEventListener('mouseleave', () => {
+            sidebarHideTimer = setTimeout(() => {
+                domGithubSidebar.classList.add('-translate-x-full');
+            }, 1000);
+        });
+
+        async function fetchPathCommitDate(path) {
+            const token = config.getToken();
+            if (!token) return null;
+            try {
+                const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/commits?path=${path}&per_page=1`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data && data.length > 0 ? data[0].commit.committer.date : null;
+            } catch (e) { return null; }
+        }
+
+        async function fetchFolderSummary(path) {
+            const token = config.getToken();
+            if (!token) return null;
+            try {
+                const res = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}/_summary.txt?ref=${config.branch}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data && data.content ? decodeURIComponent(escape(atob(data.content))) : null;
+            } catch (e) { return null; }
+        }
+
+        async function loadSidebarData(path, customTitle = null) {
+            domSidebarLoading.classList.remove('hidden');
+            domSidebarList.innerHTML = '';
+            domSidebarTitle.textContent = customTitle || pathNameMap[path] || (path === '' ? '项目列表' : path.split('/').pop());
+            domSidebarScopeControl.classList.toggle('hidden', path !== '');
+            
+            if (path === '') { domSidebarBackBtn.classList.add('hidden'); } 
+            else {
+                domSidebarBackBtn.classList.remove('hidden');
+                domSidebarBackBtn.onclick = () => {
+                    const parentPath = Object.prototype.hasOwnProperty.call(pathParentMap, path)
+                        ? pathParentMap[path]
+                        : path.split('/').slice(0, -1).join('/');
+                    loadSidebarData(parentPath, pathNameMap[parentPath]);
+                };
+            }
+
+            const cacheKey = getSidebarCacheKey(path);
+            if (sidebarCache[cacheKey]) {
+                renderSidebarList(sidebarCache[cacheKey]);
+                domSidebarLoading.classList.add('hidden');
+                return;
+            }
+
+            try {
+                if (path === '') {
+                    const rootItems = await fetchRootProjectItems(sidebarScope);
+                    sidebarCache[cacheKey] = rootItems;
+                    renderSidebarList(rootItems);
+                    return;
+                }
+
+                const data = await fetchGithubContents(path);
+                const targetItems = data.filter(item => item.name !== '_summary.txt' && item.name !== '.DS_Store');
+
+                const itemsWithDetails = await addProjectItemDetails(targetItems);
+                sidebarCache[cacheKey] = itemsWithDetails;
+                renderSidebarList(itemsWithDetails);
+            } catch (e) {
+                domSidebarList.innerHTML = `<li class="text-red-400 text-xs p-2 text-center mt-4">${e.message || '获取失败'}</li>`;
+            } finally {
+                domSidebarLoading.classList.add('hidden');
+            }
+        }
+
+        function renderSidebarList(items) {
+            domSidebarList.innerHTML = '';
+            if (items.length === 0) {
+                domSidebarList.innerHTML = `<li class="text-gray-400 text-xs p-2 text-center mt-4">空目录</li>`;
+                return;
+            }
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'p-2 hover:bg-white/10 rounded cursor-pointer transition-colors flex flex-col group';
+                const formattedDate = item.date !== '1970-01-01T00:00:00Z' 
+                    ? new Date(item.date).toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit' })
+                    : '未知时间';
+                const icon = item.type === 'dir' ? '📁' : '📄';
+                const displayName = item.type === 'dir' ? (item.summary || item.name) : item.name;
+                const scopeBadge = sidebarScope === 'all' && item.type === 'dir' && ['1', '2'].includes(item.projectScope)
+                    ? `<span class="sidebar-project-scope-badge sidebar-project-scope-badge-${item.projectScope}">${item.projectScope}</span>`
+                    : '';
+                if (item.type === 'dir') pathNameMap[item.path] = displayName;
+                if (item.parentPathOverride !== undefined) pathParentMap[item.path] = item.parentPathOverride;
+                
+                li.innerHTML = `<div class="flex items-center space-x-2 w-full"><span class="text-sm shrink-0">${icon}</span><div class="flex items-center gap-1 min-w-0"><span class="text-[13px] truncate text-gray-200 group-hover:text-white" title="${displayName}">${displayName}</span>${scopeBadge}</div></div><div class="text-[10px] text-gray-500 group-hover:text-gray-300 mt-1 ml-6 truncate">${formattedDate}</div>`;
+                
+                if (item.type === 'dir') {
+                    li.onclick = () => loadSidebarData(item.path, displayName);
+                } else {
+                    li.onclick = () => {
+                        const fileUrl = `${config.publicBaseUrl}/${item.path}`;
+                        const el = document.createElement("textarea"); el.value = fileUrl; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+                        showMessage(`已复制链接：${fileUrl}`);
+                        window.open(fileUrl, '_blank');
+                    };
+                }
+                domSidebarList.appendChild(li);
+            });
+        }
+    </script>
+
+    <!--背景动效-->
+    <script type='text/javascript' color='0,195,255' zIndex='99' opacity='1' count='399'>
+    !function(){function o(w,v,i){return w.getAttribute(v)||i}function j(i){return document.getElementsByTagName(i)}function l(){var i=j("script"),w=i.length,v=i[w-1];return{l:w,z:o(v,"zIndex",-1),o:o(v,"opacity",0.5),c:o(v,"color","0,0,0"),n:o(v,"count",599)}}function k(){r=u.width=window.innerWidth||document.documentElement.clientWidth||document.body.clientWidth,n=u.height=window.innerHeight||document.documentElement.clientHeight||document.body.clientHeight}function b(){e.clearRect(0,0,r,n);var w=[f].concat(t);var x,v,A,B,z,y;t.forEach(function(i){i.x+=i.xa,i.y+=i.ya,i.xa*=i.x>r||i.x<0?-1:1,i.ya*=i.y>n||i.y<0?-1:1,e.fillRect(i.x-0.5,i.y-0.5,1,1);for(v=0;v<w.length;v++){x=w[v];if(i!==x&&null!==x.x&&null!==x.y){B=i.x-x.x,z=i.y-x.y,y=B*B+z*z;y<x.max&&(x===f&&y>=x.max/2&&(i.x-=0.03*B,i.y-=0.03*z),A=(x.max-y)/x.max,e.beginPath(),e.lineWidth=A/2,e.strokeStyle="rgba("+s.c+","+(A+0.2)+")",e.moveTo(i.x,i.y),e.lineTo(x.x,x.y),e.stroke())}}w.splice(w.indexOf(i),1)}),m(b)}var u=document.createElement("canvas"),s=l(),c="c_n"+s.l,e=u.getContext("2d"),r,n,m=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.oRequestAnimationFrame||window.msRequestAnimationFrame||function(i){window.setTimeout(i,1000/45)},a=Math.random,f={x:null,y:null,max:20000};u.id=c;u.style.cssText="position:fixed;top:0;left:0;z-index:"+s.z+";opacity:"+s.o+";pointer-events:none;";j("body")[0].appendChild(u);k(),window.onresize=k;window.onmousemove=function(i){i=i||window.event,f.x=i.clientX,f.y=i.clientY},window.onmouseout=function(){f.x=null,f.y=null};for(var t=[],p=0;s.n>p;p++){var h=a()*r,g=a()*n,q=2*a()-1,d=2*a()-1;t.push({x:h,y:g,xa:q,ya:d,max:6000})}setTimeout(function(){b()},100)}();
+    </script>
+
+    <!--富强民主文明和谐-->
+    <script type="text/javascript">
+        var a_idx = 0;
+        jQuery(document).ready(function($) {
+            $("body").click(function(e) {
+                var a = new Array("富强", "😄", "民主", "😊", "文明", "🤔", "和谐", "😦", "自由", "😙", "平等", "😋", "公正", "🤪" ,"法治" ,"🤠", "爱国", "🤭", "敬业", "🤩", "诚信", "🥰", "友善", "😳");
+                var $i = $("<span />").text(a[a_idx]);
+                a_idx = (a_idx + 1) % a.length;
+                var x = e.pageX, y = e.pageY;
+                $i.css({ "z-index": 9999, "top": y - 20, "left": x, "position": "absolute", "font-weight": "normal", "color": "GoldEnrod", "pointer-events": "none" });
+                $("body").append($i);
+                $i.animate({ "top": y - 180, "opacity": 0 }, 1000, function() { $i.remove(); });
+            });
+        });
+    </script>
+</body>
+</html>
