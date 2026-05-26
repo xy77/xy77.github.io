@@ -5,7 +5,8 @@
 const AUTH_CONFIG = {
     token: "UWlhbg==", 
     storageKey: 'auth_expiry_timestamp',
-    daysToExpiry: 2
+    accessPasswordKey: 'zen_access_password',
+    expiryMs: 12 * 60 * 60 * 1000
 };
 
 function getAuthDay() {
@@ -35,6 +36,7 @@ function checkAuth() {
     const isAuthPage = path.indexOf('auth.html') !== -1;
 
     if (!expiry || now > parseInt(expiry)) {
+        if (expiry) clearStoredAccess();
         // 未授权或已过期 -> 且不在验证页时，跳转验证
         if (!isAuthPage) {
             // 【修改点1】将当前页面的完整 URL 进行编码，作为 redirect 参数拼接
@@ -58,6 +60,18 @@ function checkAuth() {
     }
 }
 
+function clearStoredAccess() {
+    try {
+        localStorage.removeItem(AUTH_CONFIG.storageKey);
+        localStorage.removeItem(AUTH_CONFIG.accessPasswordKey);
+    } catch (e) {}
+
+    try {
+        sessionStorage.removeItem(AUTH_CONFIG.storageKey);
+        sessionStorage.removeItem(AUTH_CONFIG.accessPasswordKey);
+    } catch (e) {}
+}
+
 /**
  * 处理登录验证
  */
@@ -66,14 +80,16 @@ function handleLogin(inputPwd) {
     
     if (inputPwd === currentDay) {
         const now = new Date().getTime();
-        const expiryTime = now + (AUTH_CONFIG.daysToExpiry * 24 * 60 * 60 * 1000);
-        
+        const expiryTime = now + AUTH_CONFIG.expiryMs;
+
         try {
             localStorage.setItem(AUTH_CONFIG.storageKey, expiryTime.toString());
+            localStorage.setItem(AUTH_CONFIG.accessPasswordKey, inputPwd);
             return true;
         } catch (e) {
             console.error("LocalStorage 被浏览器禁用，请尝试在服务器环境下运行。");
             sessionStorage.setItem(AUTH_CONFIG.storageKey, expiryTime.toString());
+            sessionStorage.setItem(AUTH_CONFIG.accessPasswordKey, inputPwd);
             return true;
         }
     }

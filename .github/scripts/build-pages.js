@@ -90,7 +90,8 @@ function makeEncryptedPage(html) {
   <script>
     const encryptedPayload = ${JSON.stringify(payload)};
     const authStorageKey = 'auth_expiry_timestamp';
-    const daysToExpiry = 2;
+    const accessPasswordStorageKey = 'zen_access_password';
+    const accessDurationMs = 12 * 60 * 60 * 1000;
     const input = document.getElementById('decrypt-password');
     const error = document.getElementById('decrypt-error');
 
@@ -118,12 +119,48 @@ function makeEncryptedPage(html) {
       );
     }
 
-    function markAuthorized() {
-      const expiry = Date.now() + daysToExpiry * 24 * 60 * 60 * 1000;
+    function clearStoredAccess() {
+      try {
+        localStorage.removeItem(authStorageKey);
+        localStorage.removeItem(accessPasswordStorageKey);
+      } catch (e) {}
+      try {
+        sessionStorage.removeItem(authStorageKey);
+        sessionStorage.removeItem(accessPasswordStorageKey);
+      } catch (e) {}
+    }
+
+    function getStoredAccessPassword() {
+      let expiry = 0;
+      let password = '';
+      try {
+        expiry = Number(localStorage.getItem(authStorageKey) || 0);
+        password = localStorage.getItem(accessPasswordStorageKey) || '';
+      } catch (e) {}
+
+      if (!password) {
+        try {
+          expiry = Number(sessionStorage.getItem(authStorageKey) || 0);
+          password = sessionStorage.getItem(accessPasswordStorageKey) || '';
+        } catch (e) {}
+      }
+
+      if (!password || !expiry || Date.now() > expiry) {
+        clearStoredAccess();
+        return '';
+      }
+
+      return password;
+    }
+
+    function rememberAccessPassword(password) {
+      const expiry = Date.now() + accessDurationMs;
       try {
         localStorage.setItem(authStorageKey, String(expiry));
+        localStorage.setItem(accessPasswordStorageKey, password);
       } catch (e) {
         sessionStorage.setItem(authStorageKey, String(expiry));
+        sessionStorage.setItem(accessPasswordStorageKey, password);
       }
     }
 
@@ -137,27 +174,38 @@ function makeEncryptedPage(html) {
       }, 3000);
     }
 
-    async function unlock() {
+    async function decryptWithPassword(password) {
+      const key = await deriveKey(password, fromBase64(encryptedPayload.salt));
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: fromBase64(encryptedPayload.iv) },
+        key,
+        fromBase64(encryptedPayload.data)
+      );
+      const html = new TextDecoder().decode(decrypted);
+      document.open();
+      document.write(html);
+      document.close();
+    }
+
+    async function unlock(password = input.value, shouldRemember = true) {
       try {
-        const key = await deriveKey(input.value, fromBase64(encryptedPayload.salt));
-        const decrypted = await crypto.subtle.decrypt(
-          { name: 'AES-GCM', iv: fromBase64(encryptedPayload.iv) },
-          key,
-          fromBase64(encryptedPayload.data)
-        );
-        markAuthorized();
-        const html = new TextDecoder().decode(decrypted);
-        document.open();
-        document.write(html);
-        document.close();
+        await decryptWithPassword(password);
+        if (shouldRemember) rememberAccessPassword(password);
       } catch (e) {
-        showError();
+        if (shouldRemember) showError();
+        else {
+          clearStoredAccess();
+          input.focus();
+        }
       }
     }
 
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter') unlock();
     });
+
+    const storedPassword = getStoredAccessPassword();
+    if (storedPassword) unlock(storedPassword, false);
   <\/script>
 </body>
 </html>`;
