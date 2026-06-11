@@ -159,31 +159,33 @@
                 <div id="editor"></div>
             </div>
 
-            <!-- 消息提示区 -->
-            <div id="status-message" class="hidden text-sm p-3 rounded-lg animate-pulse"></div>
-
             <!-- 按钮区 -->
-            <div class="flex items-center justify-end pt-2 space-x-4 shrink-0">
-                <button 
-                    id="publish-btn" 
-                    class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
-                >
-                    发布
-                </button>
+            <div class="flex items-center gap-4 pt-2 shrink-0">
+                <!-- 消息提示区 -->
+                <div id="status-message" class="hidden min-w-0 flex-1 truncate text-sm px-3 py-2 rounded-lg"></div>
 
-                <button 
-                    id="download-btn" 
-                    class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
-                >
-                    下载
-                </button>
+                <div class="flex items-center justify-end gap-4 shrink-0">
+                    <button
+                        id="publish-btn"
+                        class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
+                    >
+                        发布
+                    </button>
 
-                <button 
-                    id="preview-btn" 
-                    class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                    预览
-                </button>
+                    <button
+                        id="download-btn"
+                        class="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center"
+                    >
+                        下载
+                    </button>
+
+                    <button
+                        id="preview-btn"
+                        class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        预览
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -347,6 +349,7 @@
                 theme: 'vs', // 浅色主题
                 automaticLayout: true,
                 minimap: { enabled: true }, // 默认开启缩略图
+                wordWrap: 'off', // 默认关闭自动换行
                 fontSize: 16,
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 scrollBeyondLastLine: false,
@@ -356,6 +359,32 @@
 
             // 缩略图状态
             const minimapEnabledKey = editor.createContextKey('minimapEnabled', true);
+            const wordWrapEnabledKey = editor.createContextKey('wordWrapEnabled', false);
+
+            // 自动换行开关
+            editor.addAction({
+                id: 'enable-word-wrap-cn',
+                label: '自动换行',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 0,
+                precondition: '!wordWrapEnabled',
+                run: function(ed) {
+                    ed.updateOptions({ wordWrap: 'on' });
+                    wordWrapEnabledKey.set(true);
+                }
+            });
+
+            editor.addAction({
+                id: 'disable-word-wrap-cn',
+                label: '关闭自动换行',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 0,
+                precondition: 'wordWrapEnabled',
+                run: function(ed) {
+                    ed.updateOptions({ wordWrap: 'off' });
+                    wordWrapEnabledKey.set(false);
+                }
+            });
 
             // 隐藏缩略图
             editor.addAction({
@@ -631,7 +660,7 @@
             }
 
             statusMessage.textContent = text;
-            statusMessage.className = `text-sm p-3 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            statusMessage.className = `min-w-0 flex-1 truncate text-sm px-3 py-2 rounded-lg ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
             statusMessage.classList.remove('hidden');
             setTimeout(() => statusMessage.classList.add('hidden'), 6000);
         }
