@@ -1,0 +1,9 @@
+{
+  "version": 0,
+  "updatedAt": "",
+  "encoding": "lz-string-uri",
+  "encryption": "aes-256-gcm-pbkdf2-sha256",
+  "salt": "",
+  "iv": "",
+  "data": ""
+}

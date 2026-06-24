@@ -15,6 +15,10 @@ const functionalFiles = new Set([
   'preview.html'
 ]);
 
+const publicStaticFolders = new Set([
+  'share'
+]);
+
 const ignoredNames = new Set([
   '.git',
   '.github',
@@ -222,6 +226,7 @@ function escapeHtml(value) {
 function shouldSkip(relativePath, entry) {
   if (ignoredNames.has(entry.name)) return true;
   if (!relativePath.includes(path.sep) && functionalFiles.has(entry.name)) return true;
+  if (!relativePath.includes(path.sep) && publicStaticFolders.has(entry.name)) return true;
   return false;
 }
 
@@ -309,6 +314,14 @@ function copyFunctionalFiles() {
   }
 }
 
+function copyPublicStaticFolders() {
+  for (const folder of publicStaticFolders) {
+    const source = path.join(publicRoot, folder);
+    if (!fs.existsSync(source)) continue;
+    fs.cpSync(source, path.join(outputRoot, folder), { recursive: true });
+  }
+}
+
 function processPrivateEntry(sourcePath, relativePath = '') {
   const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
 
@@ -344,5 +357,6 @@ if (!fs.existsSync(privateRoot)) {
 resetDir(outputRoot);
 fs.writeFileSync(path.join(outputRoot, '.nojekyll'), '');
 copyFunctionalFiles();
+copyPublicStaticFolders();
 processPrivateEntry(privateRoot);
 writeProjectManifest();
