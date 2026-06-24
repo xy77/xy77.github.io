@@ -773,6 +773,32 @@
             }
         }
 
+        async function readGitHubError(res) {
+            try {
+                const data = await res.json();
+                return data && data.message ? data.message : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function formatPublicShareWriteError(status, detail) {
+            const githubDetail = detail ? `（GitHub：${detail}）` : '';
+            if (status === 401) {
+                return `发布凭据无效或已过期，请重新填写${githubDetail}`;
+            }
+            if (status === 403 || status === 404) {
+                return `发布凭据已填写，但没有写入 xy77.github.io 的权限。请给 token 增加 xy77.github.io 仓库 Contents 读写权限${githubDetail}`;
+            }
+            if (status === 409) {
+                return `分享文件刚被更新，请重新点击分享${githubDetail}`;
+            }
+            if (status === 422) {
+                return `分享文件写入参数无效，请刷新页面后重试${githubDetail}`;
+            }
+            return `同步分享内容失败：HTTP ${status}${githubDetail}`;
+        }
+
         function wait(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
         }
@@ -801,17 +827,21 @@
 
             let sha = null;
             const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.publicRepo}/contents/${shareFilePath}?ref=${config.publicBranch}&t=${Date.now()}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${token}`
+                }
             });
             if (getRes.ok) {
                 sha = (await getRes.json()).sha;
             } else if (getRes.status !== 404) {
-                throw new Error('读取分享文件失败');
+                throw new Error(formatPublicShareWriteError(getRes.status, await readGitHubError(getRes)));
             }
 
             const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.publicRepo}/contents/${shareFilePath}`, {
                 method: 'PUT',
                 headers: {
+                    'Accept': 'application/vnd.github+json',
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
@@ -824,7 +854,7 @@
             });
 
             if (!putRes.ok) {
-                throw new Error('同步分享内容失败，请检查发布凭据权限');
+                throw new Error(formatPublicShareWriteError(putRes.status, await readGitHubError(putRes)));
             }
         }
 
