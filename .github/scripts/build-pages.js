@@ -15,16 +15,16 @@ const functionalFiles = new Set([
   'preview.html'
 ]);
 
-const publicStaticFolders = new Set([
-  'share'
-]);
-
 const ignoredNames = new Set([
   '.git',
   '.github',
   '.DS_Store',
   'node_modules',
   '_summary.txt'
+]);
+
+const hiddenProjectDirectoryNames = new Set([
+  'share'
 ]);
 
 function ensureDir(dir) {
@@ -223,10 +223,20 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;');
 }
 
-function shouldSkip(relativePath, entry) {
+function isRootPath(relativePath) {
+  return !relativePath.includes(path.sep);
+}
+
+function shouldSkipManifestEntry(relativePath, entry) {
   if (ignoredNames.has(entry.name)) return true;
-  if (!relativePath.includes(path.sep) && functionalFiles.has(entry.name)) return true;
-  if (!relativePath.includes(path.sep) && publicStaticFolders.has(entry.name)) return true;
+  if (isRootPath(relativePath) && functionalFiles.has(entry.name)) return true;
+  if (isRootPath(relativePath) && entry.isDirectory() && hiddenProjectDirectoryNames.has(entry.name)) return true;
+  return false;
+}
+
+function shouldSkipOutputEntry(relativePath, entry) {
+  if (ignoredNames.has(entry.name)) return true;
+  if (isRootPath(relativePath) && functionalFiles.has(entry.name)) return true;
   return false;
 }
 
@@ -262,7 +272,7 @@ function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
 
   for (const entry of entries) {
     const nextRelative = relativePath ? path.join(relativePath, entry.name) : entry.name;
-    if (shouldSkip(nextRelative, entry)) continue;
+    if (shouldSkipManifestEntry(nextRelative, entry)) continue;
 
     const source = path.join(sourcePath, entry.name);
     if (entry.isDirectory()) {
@@ -314,20 +324,12 @@ function copyFunctionalFiles() {
   }
 }
 
-function copyPublicStaticFolders() {
-  for (const folder of publicStaticFolders) {
-    const source = path.join(publicRoot, folder);
-    if (!fs.existsSync(source)) continue;
-    fs.cpSync(source, path.join(outputRoot, folder), { recursive: true });
-  }
-}
-
 function processPrivateEntry(sourcePath, relativePath = '') {
   const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
 
   for (const entry of entries) {
     const nextRelative = relativePath ? path.join(relativePath, entry.name) : entry.name;
-    if (shouldSkip(nextRelative, entry)) continue;
+    if (shouldSkipOutputEntry(nextRelative, entry)) continue;
 
     const source = path.join(sourcePath, entry.name);
     const target = path.join(outputRoot, nextRelative);
@@ -357,6 +359,5 @@ if (!fs.existsSync(privateRoot)) {
 resetDir(outputRoot);
 fs.writeFileSync(path.join(outputRoot, '.nojekyll'), '');
 copyFunctionalFiles();
-copyPublicStaticFolders();
 processPrivateEntry(privateRoot);
 writeProjectManifest();

@@ -342,8 +342,6 @@
             owner: 'xy77', 
             repo: 'zen', 
             publicBaseUrl: 'https://xy77.github.io',
-            publicRepo: 'xy77.github.io',
-            publicBranch: 'master',
             projectManifest: 'projects.json',
             branch: 'main' 
         };
@@ -631,8 +629,8 @@
         const fixedShareHash = '#s';
         const shareFilePath = 'share/current.json';
         const shareSecret = '1';
-        const sharePollAttempts = 20;
-        const sharePollDelayMs = 1500;
+        const sharePollAttempts = 60;
+        const sharePollDelayMs = 2000;
 
         function getSharedContentFromLocation() {
             if (!window.location.hash.startsWith(legacyShareHashPrefix)) return '';
@@ -652,8 +650,13 @@
             return hash === fixedShareHash || hash.startsWith(`${fixedShareHash}?`) || hash.startsWith(`${fixedShareHash}&`);
         }
 
-        function getFixedShareUrl() {
-            return `${config.publicBaseUrl}/index.html${fixedShareHash}`;
+        function getExpectedShareVersion() {
+            const match = window.location.hash.match(/[?&]v=(\d+)/);
+            return match ? Number(match[1]) : 0;
+        }
+
+        function getFixedShareUrl(version) {
+            return `${config.publicBaseUrl}/index.html${fixedShareHash}?v=${encodeURIComponent(String(version))}`;
         }
 
         function bytesToBase64(bytes) {
@@ -746,31 +749,12 @@
             return new TextDecoder().decode(base64ToBytes(String(value || '').replace(/\s/g, '')));
         }
 
-        async function fetchPublicShareFromGitHub() {
-            const url = `https://api.github.com/repos/${config.owner}/${config.publicRepo}/contents/${shareFilePath}?ref=${config.publicBranch}&t=${Date.now()}`;
-            const res = await fetch(url, {
-                headers: { 'Accept': 'application/vnd.github+json' },
-                cache: 'no-store'
-            });
-            if (!res.ok) throw new Error('GitHub 分享文件未同步');
-            const data = await res.json();
-            return JSON.parse(decodeGitHubContent(data.content || ''));
-        }
-
-        async function fetchPublicShareFromPages() {
+        async function fetchPublishedSharePayload() {
             const res = await fetch(`${config.publicBaseUrl}/${shareFilePath}?t=${Date.now()}`, {
                 cache: 'no-store'
             });
             if (!res.ok) throw new Error('Pages 分享文件未同步');
             return await res.json();
-        }
-
-        async function fetchPublicSharePayload() {
-            try {
-                return await fetchPublicShareFromGitHub();
-            } catch (e) {
-                return await fetchPublicShareFromPages();
-            }
         }
 
         async function readGitHubError(res) {
@@ -782,13 +766,13 @@
             }
         }
 
-        function formatPublicShareWriteError(status, detail) {
+        function formatPrivateShareWriteError(status, detail) {
             const githubDetail = detail ? `（GitHub：${detail}）` : '';
             if (status === 401) {
                 return `发布凭据无效或已过期，请重新填写${githubDetail}`;
             }
             if (status === 403 || status === 404) {
-                return `发布凭据已填写，但没有写入 xy77.github.io 的权限。请给 token 增加 xy77.github.io 仓库 Contents 读写权限${githubDetail}`;
+                return `发布凭据已填写，但没有写入 zen 仓库的权限。请给 token 增加 zen 仓库 Contents 读写权限${githubDetail}`;
             }
             if (status === 409) {
                 return `分享文件刚被更新，请重新点击分享${githubDetail}`;
@@ -804,10 +788,14 @@
         }
 
         async function loadFixedShareContent() {
+            const expectedVersion = getExpectedShareVersion();
             showMessage('正在同步');
             for (let attempt = 0; attempt < sharePollAttempts; attempt += 1) {
                 try {
-                    const payload = await fetchPublicSharePayload();
+                    const payload = await fetchPublishedSharePayload();
+                    if (expectedVersion && Number(payload.version || 0) < expectedVersion) {
+                        throw new Error('分享文件还未更新到新版本');
+                    }
                     const content = await decodeSharePayload(payload);
                     editor.setValue(content);
                     localStorage.setItem('zen_editor_content', content);
@@ -821,12 +809,12 @@
             showMessage('同步超时，请稍后重新扫码', true);
         }
 
-        async function updatePublicShareFile(payload) {
+        async function updatePrivateShareFile(payload) {
             const token = getPublishToken();
             if (!token) throw new Error('请先设置发布凭据');
 
             let sha = null;
-            const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.publicRepo}/contents/${shareFilePath}?ref=${config.publicBranch}&t=${Date.now()}`, {
+            const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${shareFilePath}?ref=${config.branch}&t=${Date.now()}`, {
                 headers: {
                     'Accept': 'application/vnd.github+json',
                     'Authorization': `Bearer ${token}`
@@ -835,10 +823,10 @@
             if (getRes.ok) {
                 sha = (await getRes.json()).sha;
             } else if (getRes.status !== 404) {
-                throw new Error(formatPublicShareWriteError(getRes.status, await readGitHubError(getRes)));
+                throw new Error(formatPrivateShareWriteError(getRes.status, await readGitHubError(getRes)));
             }
 
-            const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.publicRepo}/contents/${shareFilePath}`, {
+            const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${shareFilePath}`, {
                 method: 'PUT',
                 headers: {
                     'Accept': 'application/vnd.github+json',
@@ -849,12 +837,12 @@
                     message: 'share: update current content',
                     content: encodeGitHubContent(JSON.stringify(payload, null, 2)),
                     ...(sha ? { sha } : {}),
-                    branch: config.publicBranch
+                    branch: config.branch
                 })
             });
 
             if (!putRes.ok) {
-                throw new Error(formatPublicShareWriteError(putRes.status, await readGitHubError(putRes)));
+                throw new Error(formatPrivateShareWriteError(putRes.status, await readGitHubError(putRes)));
             }
         }
 
@@ -865,11 +853,12 @@
                 return showMessage('二维码组件加载失败，请刷新后重试', true);
             }
 
-            let shareUrl = getFixedShareUrl();
+            let shareUrl = '';
             try {
                 showMessage('正在同步分享内容...');
                 const payload = await createSharePayload(content);
-                await updatePublicShareFile(payload);
+                await updatePrivateShareFile(payload);
+                shareUrl = getFixedShareUrl(payload.version);
             } catch (e) {
                 return showMessage(e.message || '分享失败', true);
             }
@@ -1150,8 +1139,8 @@
             return path === '' ? getRootSidebarCacheKey() : path;
         }
 
-        const hiddenProjectDirectoryNames = new Set(['temp', '.github']);
-        const hiddenSidebarDirectoryNames = new Set(['.github']);
+        const hiddenProjectDirectoryNames = new Set(['temp', '.github', 'share']);
+        const hiddenSidebarDirectoryNames = new Set(['.github', 'share']);
         const hiddenSidebarFileExtensions = new Set(['webp', 'png', 'jpg', 'jpeg', 'bmp', 'heic', 'gif']);
 
         function getFileExtension(name) {
