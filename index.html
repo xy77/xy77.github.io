@@ -16,6 +16,9 @@
     </script>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入分享内容压缩和二维码生成 -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <!-- 引入 Monaco Editor 加载器 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
     <style>
@@ -296,6 +299,25 @@
         </div>
     </div>
 
+    <!-- 分享弹窗 -->
+    <div id="share-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-[60] backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-gray-200 animate-in fade-in zoom-in duration-300">
+            <div class="bg-gray-100 px-6 py-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-800">分享</h2>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="flex justify-center">
+                    <div id="share-qr-canvas" class="w-56 h-56"></div>
+                </div>
+                <input type="text" id="share-link-input" readonly class="w-full p-2 text-xs border border-gray-300 rounded-lg bg-gray-50 text-gray-600 outline-none">
+            </div>
+            <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
+                <button id="share-copy" class="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium">复制链接</button>
+                <button id="share-close" class="px-6 py-2 bg-gray-800 hover:bg-black text-white font-medium rounded-lg transition-colors shadow-md">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 弹窗内错误提示 -->
     <div id="modal-error-dialog" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-[80] backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden border border-red-100">
@@ -341,7 +363,8 @@
         });
         require(['vs/editor/editor.main'], function() {
             // 从本地恢复内容
-            const savedContent = localStorage.getItem('zen_editor_content') || '';
+            const sharedContent = getSharedContentFromLocation();
+            const savedContent = sharedContent || localStorage.getItem('zen_editor_content') || '';
             
             editor = monaco.editor.create(document.getElementById('editor'), {
                 value: savedContent,
@@ -360,6 +383,16 @@
             // 缩略图状态
             const minimapEnabledKey = editor.createContextKey('minimapEnabled', true);
             const wordWrapEnabledKey = editor.createContextKey('wordWrapEnabled', false);
+
+            editor.addAction({
+                id: 'share-editor-content-cn',
+                label: '分享',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: -1,
+                run: function() {
+                    openShareModal();
+                }
+            });
 
             // 自动换行开关
             editor.addAction({
@@ -484,6 +517,11 @@
                 }
             });
 
+            if (sharedContent) {
+                localStorage.setItem('zen_editor_content', sharedContent);
+                window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+            }
+
             // 编辑器加载完成后初始化数据
             loadSidebarData('');
             editor.focus();
@@ -527,6 +565,11 @@
         const modalErrorDialog = document.getElementById('modal-error-dialog');
         const modalErrorMessage = document.getElementById('modal-error-message');
         const modalErrorClose = document.getElementById('modal-error-close');
+        const shareModal = document.getElementById('share-modal');
+        const shareQrCanvas = document.getElementById('share-qr-canvas');
+        const shareLinkInput = document.getElementById('share-link-input');
+        const shareCopy = document.getElementById('share-copy');
+        const shareClose = document.getElementById('share-close');
 
         // 重构内容类型检测，使 JSON 始终高亮错误
         function detectType(content) {
@@ -580,9 +623,77 @@
             return editor ? editor.getValue() : '';
         }
 
+        const shareHashPrefix = '#share=';
+
+        function getSharedContentFromLocation() {
+            if (!window.location.hash.startsWith(shareHashPrefix)) return '';
+            if (typeof LZString === 'undefined') return '';
+
+            try {
+                const payload = window.location.hash.slice(shareHashPrefix.length);
+                const content = LZString.decompressFromEncodedURIComponent(payload);
+                return typeof content === 'string' ? content : '';
+            } catch (e) {
+                return '';
+            }
+        }
+
+        function getCurrentPageUrlWithoutHash() {
+            return `${window.location.origin}${window.location.pathname}${window.location.search}`;
+        }
+
+        function buildShareUrl(content) {
+            if (typeof LZString === 'undefined') {
+                throw new Error('分享组件加载失败，请刷新后重试');
+            }
+
+            const compressed = LZString.compressToEncodedURIComponent(content);
+            return `${getCurrentPageUrlWithoutHash()}${shareHashPrefix}${compressed}`;
+        }
+
+        async function openShareModal() {
+            const content = getFullCode();
+            if (!content.trim()) return showMessage('内容为空', true);
+            if (typeof QRCode === 'undefined') {
+                return showMessage('二维码组件加载失败，请刷新后重试', true);
+            }
+
+            let shareUrl = '';
+            try {
+                shareUrl = buildShareUrl(content);
+            } catch (e) {
+                return showMessage(e.message || '分享失败', true);
+            }
+
+            if (shareUrl.length > 2800) {
+                return showMessage('内容过长，二维码无法承载', true);
+            }
+
+            shareLinkInput.value = shareUrl;
+            shareQrCanvas.innerHTML = '';
+
+            try {
+                new QRCode(shareQrCanvas, {
+                    text: shareUrl,
+                    width: 224,
+                    height: 224,
+                    colorDark: '#000000',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+                shareModal.classList.replace('hidden', 'flex');
+            } catch (e) {
+                showMessage('二维码生成失败', true);
+            }
+        }
+
+        function closeShareModal() {
+            shareModal.classList.replace('flex', 'hidden');
+        }
+
         // --- 核心交互逻辑 ---
         function isDialogPageOpen() {
-            return !publishModal.classList.contains('hidden') || !downloadModal.classList.contains('hidden') || !publishTokenModal.classList.contains('hidden');
+            return !publishModal.classList.contains('hidden') || !downloadModal.classList.contains('hidden') || !publishTokenModal.classList.contains('hidden') || !shareModal.classList.contains('hidden');
         }
 
         function showModalError(text) {
@@ -598,6 +709,24 @@
         modalErrorClose.onclick = hideModalError;
         modalErrorDialog.onclick = (e) => {
             if (e.target === modalErrorDialog) hideModalError();
+        };
+
+        shareClose.onclick = closeShareModal;
+        shareModal.onclick = (e) => {
+            if (e.target === shareModal) closeShareModal();
+        };
+        shareCopy.onclick = async () => {
+            const link = shareLinkInput.value;
+            if (!link) return;
+
+            try {
+                await navigator.clipboard.writeText(link);
+                showMessage('链接已复制');
+            } catch (e) {
+                shareLinkInput.select();
+                document.execCommand('copy');
+                showMessage('链接已复制');
+            }
         };
 
         const publishTokenLocalKey = 'zen_publish_token';
