@@ -625,6 +625,8 @@
         const shareDirectory = 'share';
         const shareIdBytes = 12;
         const shareKeyBytes = 32;
+        const sharePagesPollAttempts = 90;
+        const sharePagesPollDelayMs = 2000;
 
         function isShareLocation() {
             const hash = window.location.hash;
@@ -801,7 +803,17 @@
             return `读取分享内容失败：HTTP ${status}${githubDetail}`;
         }
 
-        async function fetchSharePayload(id, ref) {
+        function wait(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function createShareReadError(status, detail) {
+            const err = new Error(formatShareReadError(status, detail));
+            err.status = status;
+            return err;
+        }
+
+        async function fetchSharePayloadFromApi(id, ref) {
             const path = getShareFilePath(id);
             const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(path)}?ref=${encodeURIComponent(ref)}&t=${Date.now()}`;
             const res = await fetch(url, {
@@ -810,12 +822,44 @@
             });
 
             if (!res.ok) {
-                throw new Error(formatShareReadError(res.status, await readGitHubError(res)));
+                throw createShareReadError(res.status, await readGitHubError(res));
             }
 
             const data = await res.json();
             if (!data || !data.content) throw new Error('分享内容为空');
             return JSON.parse(decodeGitHubContent(data.content));
+        }
+
+        async function fetchSharePayloadFromPages(id) {
+            const res = await fetch(`${config.publicBaseUrl}/${getShareFilePath(id)}?t=${Date.now()}`, {
+                cache: 'no-store'
+            });
+
+            if (!res.ok) {
+                throw createShareReadError(res.status, '');
+            }
+
+            return await res.json();
+        }
+
+        async function fetchSharePayload(id, ref) {
+            try {
+                return await fetchSharePayloadFromApi(id, ref);
+            } catch (apiError) {
+                if (![403, 404].includes(apiError.status)) throw apiError;
+            }
+
+            showMessage('正在等待分享内容同步...');
+            for (let attempt = 0; attempt < sharePagesPollAttempts; attempt += 1) {
+                try {
+                    return await fetchSharePayloadFromPages(id);
+                } catch (pagesError) {
+                    if (![403, 404].includes(pagesError.status)) throw pagesError;
+                    await wait(sharePagesPollDelayMs);
+                }
+            }
+
+            throw new Error('分享内容同步超时，请稍后重新扫码');
         }
 
         async function loadShareContentFromLocation() {

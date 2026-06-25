@@ -68,29 +68,29 @@
 <!--今天也要加油鸭+1-->
 <script type="text/javascript">
     var a_idx = 0;
-    jQuery(document).ready(function($) {
-        $("body").click(function(e) {
+    document.addEventListener('DOMContentLoaded', function() {
+        document.body.addEventListener('click', function(e) {
             var a = new Array("富强", "民主", "文明", "和谐", "自由", "平等", "公正" ,"法治", "爱国", "敬业", "诚信", "友善");
-            var $i = $("<span />").text(a[a_idx]);
+            var i = document.createElement('span');
+            i.textContent = a[a_idx];
             a_idx = (a_idx + 1) % a.length;
-            var x = e.pageX,
-            y = e.pageY;
-            $i.css({
-                "z-index": 9999,
-                "top": y - 20,
-                "left": x,
-                "position": "absolute",
-                "font-weight": "normal",
-                "color": "GoldEnrod"
-            });
-            $("body").append($i);
-            $i.animate({
-                "top": y - 180,
-                "opacity": 0
-            },
-            1000,
-            function() {
-                $i.remove();
+            i.style.zIndex = '9999';
+            i.style.top = (e.pageY - 20) + 'px';
+            i.style.left = e.pageX + 'px';
+            i.style.position = 'absolute';
+            i.style.fontWeight = 'normal';
+            i.style.color = 'GoldEnrod';
+            i.style.pointerEvents = 'none';
+            document.body.appendChild(i);
+
+            i.animate([
+                { top: (e.pageY - 20) + 'px', opacity: 1 },
+                { top: (e.pageY - 180) + 'px', opacity: 0 }
+            ], {
+                duration: 1000,
+                easing: 'linear'
+            }).finished.finally(function() {
+                i.remove();
             });
         });
     });
