@@ -363,8 +363,7 @@
         });
         require(['vs/editor/editor.main'], function() {
             // 从本地恢复内容
-            const sharedContent = getSharedContentFromLocation();
-            const savedContent = sharedContent || localStorage.getItem('zen_editor_content') || '';
+            const savedContent = localStorage.getItem('zen_editor_content') || '';
             
             editor = monaco.editor.create(document.getElementById('editor'), {
                 value: savedContent,
@@ -517,11 +516,8 @@
                 }
             });
 
-            if (sharedContent) {
-                localStorage.setItem('zen_editor_content', sharedContent);
-                window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-            } else if (isFixedShareLocation()) {
-                loadFixedShareContent();
+            if (isShareLocation()) {
+                loadShareContentFromLocation();
             }
 
             // 编辑器加载完成后初始化数据
@@ -625,38 +621,57 @@
             return editor ? editor.getValue() : '';
         }
 
-        const legacyShareHashPrefix = '#share=';
-        const fixedShareHash = '#s';
-        const shareFilePath = 'share/current.json';
-        const shareSecret = '1';
-        const sharePollAttempts = 60;
-        const sharePollDelayMs = 2000;
+        const shareHash = '#s';
+        const shareDirectory = 'share';
+        const shareIdBytes = 12;
+        const shareKeyBytes = 32;
 
-        function getSharedContentFromLocation() {
-            if (!window.location.hash.startsWith(legacyShareHashPrefix)) return '';
-            if (typeof LZString === 'undefined') return '';
-
-            try {
-                const payload = window.location.hash.slice(legacyShareHashPrefix.length);
-                const content = LZString.decompressFromEncodedURIComponent(payload);
-                return typeof content === 'string' ? content : '';
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function isFixedShareLocation() {
+        function isShareLocation() {
             const hash = window.location.hash;
-            return hash === fixedShareHash || hash.startsWith(`${fixedShareHash}?`) || hash.startsWith(`${fixedShareHash}&`);
+            return hash === shareHash || hash.startsWith(`${shareHash}?`) || hash.startsWith(`${shareHash}&`);
         }
 
-        function getExpectedShareVersion() {
-            const match = window.location.hash.match(/[?&]v=(\d+)/);
-            return match ? Number(match[1]) : 0;
+        function isSafeShareId(id) {
+            return /^[A-Za-z0-9_-]{8,64}$/.test(id);
         }
 
-        function getFixedShareUrl(version) {
-            return `${config.publicBaseUrl}/index.html${fixedShareHash}?v=${encodeURIComponent(String(version))}`;
+        function isSafeShareRef(ref) {
+            return /^[0-9a-f]{40}$/i.test(ref);
+        }
+
+        function isSafeShareKey(key) {
+            return /^[A-Za-z0-9_-]{32,96}$/.test(key);
+        }
+
+        function getShareParamsFromLocation() {
+            if (!isShareLocation()) return null;
+
+            const query = window.location.hash.slice(shareHash.length).replace(/^[?&]/, '');
+            const params = new URLSearchParams(query);
+            const id = params.get('id') || '';
+            const ref = params.get('ref') || '';
+            const key = params.get('k') || '';
+
+            if (!id || !ref || !key) throw new Error('分享链接无效');
+            if (!isSafeShareId(id) || !isSafeShareRef(ref) || !isSafeShareKey(key)) {
+                throw new Error('分享链接参数无效');
+            }
+
+            return { id, ref, key };
+        }
+
+        function getShareFilePath(id) {
+            if (!isSafeShareId(id)) throw new Error('分享 ID 无效');
+            return `${shareDirectory}/${id}.json`;
+        }
+
+        function encodeGitHubPath(path) {
+            return path.split('/').map(encodeURIComponent).join('/');
+        }
+
+        function getShareUrl(id, ref, key) {
+            const params = new URLSearchParams({ id, ref, k: key });
+            return `${config.publicBaseUrl}/index.html${shareHash}?${params.toString()}`;
         }
 
         function bytesToBase64(bytes) {
@@ -668,6 +683,13 @@
             return btoa(binary);
         }
 
+        function bytesToBase64Url(bytes) {
+            return bytesToBase64(bytes)
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/g, '');
+        }
+
         function base64ToBytes(value) {
             const binary = atob(value);
             const bytes = new Uint8Array(binary.length);
@@ -675,67 +697,64 @@
             return bytes;
         }
 
-        async function deriveShareKey(secret, salt, usage) {
-            const material = await crypto.subtle.importKey(
-                'raw',
-                new TextEncoder().encode(secret),
-                'PBKDF2',
-                false,
-                ['deriveKey']
-            );
-            return crypto.subtle.deriveKey(
-                { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
-                material,
-                { name: 'AES-GCM', length: 256 },
-                false,
-                [usage]
-            );
+        function base64UrlToBytes(value) {
+            const normalized = String(value || '').replace(/-/g, '+').replace(/_/g, '/');
+            const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+            return base64ToBytes(padded);
         }
 
-        async function encryptShareText(text) {
-            const salt = crypto.getRandomValues(new Uint8Array(16));
+        function createRandomToken(byteLength) {
+            return bytesToBase64Url(crypto.getRandomValues(new Uint8Array(byteLength)));
+        }
+
+        async function importShareKey(keyText, usages) {
+            const keyBytes = base64UrlToBytes(keyText);
+            if (keyBytes.length !== shareKeyBytes) throw new Error('分享密钥无效');
+            return crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, usages);
+        }
+
+        async function encryptShareText(text, keyText) {
             const iv = crypto.getRandomValues(new Uint8Array(12));
-            const key = await deriveShareKey(shareSecret, salt, 'encrypt');
+            const key = await importShareKey(keyText, ['encrypt']);
             const encrypted = await crypto.subtle.encrypt(
                 { name: 'AES-GCM', iv },
                 key,
                 new TextEncoder().encode(text)
             );
             return {
-                salt: bytesToBase64(salt),
                 iv: bytesToBase64(iv),
                 data: bytesToBase64(new Uint8Array(encrypted))
             };
         }
 
-        async function decryptShareText(payload) {
-            const salt = base64ToBytes(payload.salt || '');
+        async function decryptShareText(payload, keyText) {
             const iv = base64ToBytes(payload.iv || '');
             const data = base64ToBytes(payload.data || '');
-            const key = await deriveShareKey(shareSecret, salt, 'decrypt');
+            const key = await importShareKey(keyText, ['decrypt']);
             const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
             return new TextDecoder().decode(decrypted);
         }
 
-        async function createSharePayload(content) {
+        async function createSharePayload(content, id, key) {
             if (typeof LZString === 'undefined') {
                 throw new Error('分享组件加载失败，请刷新后重试');
             }
 
             const compressed = LZString.compressToEncodedURIComponent(content);
-            const encrypted = await encryptShareText(compressed);
+            const encrypted = await encryptShareText(compressed, key);
             return {
+                id,
                 version: Date.now(),
                 updatedAt: new Date().toISOString(),
                 encoding: 'lz-string-uri',
-                encryption: 'aes-256-gcm-pbkdf2-sha256',
+                encryption: 'aes-256-gcm-url-key',
                 ...encrypted
             };
         }
 
-        async function decodeSharePayload(payload) {
+        async function decodeSharePayload(payload, key) {
             if (!payload || !payload.data) throw new Error('分享内容还未生成');
-            const compressed = await decryptShareText(payload);
+            const compressed = await decryptShareText(payload, key);
             const content = LZString.decompressFromEncodedURIComponent(compressed);
             if (typeof content !== 'string') throw new Error('分享内容解析失败');
             return content;
@@ -747,14 +766,6 @@
 
         function decodeGitHubContent(value) {
             return new TextDecoder().decode(base64ToBytes(String(value || '').replace(/\s/g, '')));
-        }
-
-        async function fetchPublishedSharePayload() {
-            const res = await fetch(`${config.publicBaseUrl}/${shareFilePath}?t=${Date.now()}`, {
-                cache: 'no-store'
-            });
-            if (!res.ok) throw new Error('Pages 分享文件未同步');
-            return await res.json();
         }
 
         async function readGitHubError(res) {
@@ -775,58 +786,59 @@
                 return `发布凭据已填写，但没有写入 zen 仓库的权限。请给 token 增加 zen 仓库 Contents 读写权限${githubDetail}`;
             }
             if (status === 409) {
-                return `分享文件刚被更新，请重新点击分享${githubDetail}`;
+                return `分享文件写入冲突，请重新点击分享${githubDetail}`;
             }
             if (status === 422) {
-                return `分享文件写入参数无效，请刷新页面后重试${githubDetail}`;
+                return `分享文件写入参数无效或文件已存在，请重新点击分享${githubDetail}`;
             }
             return `同步分享内容失败：HTTP ${status}${githubDetail}`;
         }
 
-        function wait(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
+        function formatShareReadError(status, detail) {
+            const githubDetail = detail ? `（GitHub：${detail}）` : '';
+            if (status === 404) return `分享内容不存在或已被删除${githubDetail}`;
+            if (status === 403) return `读取分享内容受限，请确认 zen 仓库可公开读取${githubDetail}`;
+            return `读取分享内容失败：HTTP ${status}${githubDetail}`;
         }
 
-        async function loadFixedShareContent() {
-            const expectedVersion = getExpectedShareVersion();
-            showMessage('正在同步');
-            for (let attempt = 0; attempt < sharePollAttempts; attempt += 1) {
-                try {
-                    const payload = await fetchPublishedSharePayload();
-                    if (expectedVersion && Number(payload.version || 0) < expectedVersion) {
-                        throw new Error('分享文件还未更新到新版本');
-                    }
-                    const content = await decodeSharePayload(payload);
-                    editor.setValue(content);
-                    localStorage.setItem('zen_editor_content', content);
-                    window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
-                    showMessage('分享内容已同步');
-                    return;
-                } catch (e) {
-                    await wait(sharePollDelayMs);
-                }
+        async function fetchSharePayload(id, ref) {
+            const path = getShareFilePath(id);
+            const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(path)}?ref=${encodeURIComponent(ref)}&t=${Date.now()}`;
+            const res = await fetch(url, {
+                headers: { 'Accept': 'application/vnd.github+json' },
+                cache: 'no-store'
+            });
+
+            if (!res.ok) {
+                throw new Error(formatShareReadError(res.status, await readGitHubError(res)));
             }
-            showMessage('同步超时，请稍后重新扫码', true);
+
+            const data = await res.json();
+            if (!data || !data.content) throw new Error('分享内容为空');
+            return JSON.parse(decodeGitHubContent(data.content));
         }
 
-        async function updatePrivateShareFile(payload) {
+        async function loadShareContentFromLocation() {
+            showMessage('正在读取分享内容...');
+
+            try {
+                const params = getShareParamsFromLocation();
+                const payload = await fetchSharePayload(params.id, params.ref);
+                const content = await decodeSharePayload(payload, params.key);
+                editor.setValue(content);
+                localStorage.setItem('zen_editor_content', content);
+                window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+                showMessage('分享内容已载入');
+            } catch (e) {
+                showMessage(e.message || '分享内容载入失败', true);
+            }
+        }
+
+        async function createPrivateShareFile(path, payload) {
             const token = getPublishToken();
             if (!token) throw new Error('请先设置发布凭据');
 
-            let sha = null;
-            const getRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${shareFilePath}?ref=${config.branch}&t=${Date.now()}`, {
-                headers: {
-                    'Accept': 'application/vnd.github+json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            if (getRes.ok) {
-                sha = (await getRes.json()).sha;
-            } else if (getRes.status !== 404) {
-                throw new Error(formatPrivateShareWriteError(getRes.status, await readGitHubError(getRes)));
-            }
-
-            const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${shareFilePath}`, {
+            const putRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(path)}`, {
                 method: 'PUT',
                 headers: {
                     'Accept': 'application/vnd.github+json',
@@ -834,9 +846,8 @@
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    message: 'share: update current content',
+                    message: `share: add ${path}`,
                     content: encodeGitHubContent(JSON.stringify(payload, null, 2)),
-                    ...(sha ? { sha } : {}),
                     branch: config.branch
                 })
             });
@@ -844,6 +855,11 @@
             if (!putRes.ok) {
                 throw new Error(formatPrivateShareWriteError(putRes.status, await readGitHubError(putRes)));
             }
+
+            const data = await putRes.json();
+            const commitSha = data && data.commit && data.commit.sha;
+            if (!commitSha) throw new Error('分享文件已写入，但未获取到提交版本');
+            return commitSha;
         }
 
         async function openShareModal() {
@@ -855,10 +871,12 @@
 
             let shareUrl = '';
             try {
-                showMessage('正在同步分享内容...');
-                const payload = await createSharePayload(content);
-                await updatePrivateShareFile(payload);
-                shareUrl = getFixedShareUrl(payload.version);
+                showMessage('正在生成分享内容...');
+                const shareId = createRandomToken(shareIdBytes);
+                const shareKey = createRandomToken(shareKeyBytes);
+                const payload = await createSharePayload(content, shareId, shareKey);
+                const commitSha = await createPrivateShareFile(getShareFilePath(shareId), payload);
+                shareUrl = getShareUrl(shareId, commitSha, shareKey);
             } catch (e) {
                 return showMessage(e.message || '分享失败', true);
             }
@@ -876,7 +894,7 @@
                     correctLevel: QRCode.CorrectLevel.M
                 });
                 shareModal.classList.replace('hidden', 'flex');
-                showMessage('分享内容已同步');
+                showMessage('分享内容已生成');
             } catch (e) {
                 showMessage('二维码生成失败', true);
             }
