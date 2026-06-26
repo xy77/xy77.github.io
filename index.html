@@ -500,6 +500,48 @@
                     localStorage.setItem('zen_editor_content', '');
                 }
             });
+
+            editor.addAction({
+                id: 'select-all-and-copy',
+                label: '全选并复制',
+                contextMenuGroupId: '0_custom_top',
+                contextMenuOrder: 5,
+                run: async function(ed) {
+                    const model = ed.getModel();
+                    if (!model) return showMessage('复制失败', true);
+
+                    const range = model.getFullModelRange();
+                    ed.setSelection(range);
+                    ed.revealRange(range);
+                    ed.focus();
+
+                    const text = ed.getValue();
+                    if (!text) return showMessage('内容为空', true);
+
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        showMessage('已全选并复制');
+                    } catch (err) {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = text;
+                        textarea.setAttribute('readonly', '');
+                        textarea.style.position = 'fixed';
+                        textarea.style.left = '-9999px';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+
+                        try {
+                            const copied = document.execCommand('copy');
+                            showMessage(copied ? '已全选并复制' : '复制失败，请手动复制', !copied);
+                        } catch (fallbackErr) {
+                            showMessage('复制失败，请手动复制', true);
+                        } finally {
+                            document.body.removeChild(textarea);
+                            ed.focus();
+                        }
+                    }
+                }
+            });
             
             // 监听编辑器内容变化并实时保存到 localStorage
             editor.onDidChangeModelContent(() => {
