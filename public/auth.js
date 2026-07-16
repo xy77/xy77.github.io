@@ -105,3 +105,4 @@ function handleLogin(inputPwd) {
     }
     checkAuth();
 })();
+

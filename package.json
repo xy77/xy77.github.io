@@ -1,0 +1,16 @@
+{
+  "name": "xy77-github-pages",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:pages": "npm run build && node .github/scripts/build-pages.js",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.2",
+    "tailwindcss": "4.3.2",
+    "vite": "8.1.5"
+  }
+}

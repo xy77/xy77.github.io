@@ -4,7 +4,10 @@ const fs = require('fs');
 const path = require('path');
 
 const publicRoot = process.cwd();
-const privateRoot = path.join(publicRoot, 'private-source');
+const privateRoot = process.env.PRIVATE_SOURCE_ROOT
+  ? path.resolve(process.env.PRIVATE_SOURCE_ROOT)
+  : path.join(publicRoot, 'private-source');
+const appBuildRoot = path.join(publicRoot, '.build', 'app');
 const outputRoot = path.join(publicRoot, '_site');
 
 const functionalFiles = new Set([
@@ -17,6 +20,7 @@ const functionalFiles = new Set([
 
 const ignoredNames = new Set([
   '.git',
+  '.gitignore',
   '.github',
   '.DS_Store',
   'node_modules',
@@ -316,12 +320,25 @@ function writeProjectManifest() {
   fs.writeFileSync(path.join(outputRoot, 'projects.json'), JSON.stringify(manifest, null, 2));
 }
 
-function copyFunctionalFiles() {
-  for (const file of functionalFiles) {
-    const source = path.join(publicRoot, file);
-    if (!fs.existsSync(source)) continue;
-    fs.copyFileSync(source, path.join(outputRoot, file));
+function copyDirectory(sourceRoot, targetRoot) {
+  for (const entry of fs.readdirSync(sourceRoot, { withFileTypes: true })) {
+    const source = path.join(sourceRoot, entry.name);
+    const target = path.join(targetRoot, entry.name);
+    if (entry.isDirectory()) {
+      ensureDir(target);
+      copyDirectory(source, target);
+    } else if (entry.isFile()) {
+      ensureDir(path.dirname(target));
+      fs.copyFileSync(source, target);
+    }
   }
+}
+
+function copyApplicationBuild() {
+  if (!fs.existsSync(appBuildRoot)) {
+    throw new Error(`Vite application build not found: ${appBuildRoot}`);
+  }
+  copyDirectory(appBuildRoot, outputRoot);
 }
 
 function processPrivateEntry(sourcePath, relativePath = '') {
@@ -358,6 +375,6 @@ if (!fs.existsSync(privateRoot)) {
 
 resetDir(outputRoot);
 fs.writeFileSync(path.join(outputRoot, '.nojekyll'), '');
-copyFunctionalFiles();
+copyApplicationBuild();
 processPrivateEntry(privateRoot);
 writeProjectManifest();

@@ -41,6 +41,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Build Vite application
+        run: npm run build
 
       - name: Build encrypted Pages artifact
         run: node .github/scripts/build-pages.js
