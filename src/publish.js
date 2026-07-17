@@ -76,6 +76,7 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
   let selectedFolder = null;
   let selectedProjectKey = null;
   let isNewProjectMode = false;
+  let projectButtonsExpanded = false;
 
   function toPublishFolder(item) {
     return {
@@ -87,10 +88,13 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     };
   }
 
-  function renderProjectButtons(limit = 10) {
+  function getProjectButtonRowCount() {
+    return new Set(Array.from(projectContainer.children, (button) => button.offsetTop)).size;
+  }
+
+  function renderProjectButtons(showAll = projectButtonsExpanded) {
     projectContainer.replaceChildren();
-    const visibleFolders = limit ? folders.slice(0, limit) : folders;
-    visibleFolders.forEach((folder) => {
+    const folderButtons = folders.map((folder) => {
       const button = document.createElement('button');
       button.className = `px-3 py-1.5 text-sm border border-gray-200 rounded-md bg-white hover:border-blue-400 transition-all ${
         selectedProjectKey === folder.key && !isNewProjectMode ? 'folder-btn-active' : ''
@@ -102,20 +106,26 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
         isNewProjectMode = false;
         projectId.value = folder.id;
         newProjectContainer.classList.add('hidden');
-        renderProjectButtons(limit);
+        renderProjectButtons();
       });
-      projectContainer.appendChild(button);
+      return button;
     });
+    projectContainer.append(...folderButtons);
 
-    if (limit && folders.length > limit) {
+    if (!showAll && getProjectButtonRowCount() > 3) {
       const moreButton = document.createElement('button');
-      moreButton.className = 'px-3 py-1.5 text-sm border-gray-300 text-blue-600 rounded-md bg-white hover:border-blue-400 transition-all';
+      moreButton.className = 'px-3 py-1.5 text-sm border border-gray-300 text-blue-600 rounded-md bg-white hover:border-blue-400 transition-all';
       moreButton.textContent = '查看更多';
       moreButton.addEventListener('click', (event) => {
         event.preventDefault();
-        renderProjectButtons(null);
+        projectButtonsExpanded = true;
+        renderProjectButtons(true);
       });
       projectContainer.appendChild(moreButton);
+
+      while (getProjectButtonRowCount() > 3 && folderButtons.length) {
+        folderButtons.pop().remove();
+      }
     }
   }
 
@@ -129,7 +139,8 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     try {
       const items = sidebar.getCachedRootItems('all') || (await api.fetchRootProjectItems('all'));
       folders = items.map(toPublishFolder);
-      renderProjectButtons(10);
+      projectButtonsExpanded = false;
+      renderProjectButtons();
     } catch (error) {
       loading.className = 'text-sm text-red-500';
       loading.textContent = error.message || '无法连接到 GitHub';
@@ -292,7 +303,7 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     projectId.value = '';
     newProjectContainer.classList.remove('hidden');
     newProjectSummary.value = '';
-    renderProjectButtons(10);
+    renderProjectButtons();
     newProjectName.focus();
   });
 
