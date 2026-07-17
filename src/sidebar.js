@@ -300,7 +300,10 @@ export function initSidebar({ api, showMessage }) {
   });
   sidebar.addEventListener('mouseenter', () => clearTimeout(hideTimer));
   sidebar.addEventListener('mouseleave', () => {
-    hideTimer = setTimeout(() => sidebar.classList.add('-translate-x-full'), 1000);
+    hideTimer = setTimeout(() => {
+      sidebar.classList.add('-translate-x-full');
+      closeScopeMenu();
+    }, 1000);
   });
   renderScopeControl();
 
