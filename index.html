@@ -160,18 +160,18 @@
                     </div>
                 </div>
 
-                <!-- 加密开关 -->
-                <div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <span class="text-sm font-medium text-gray-700">加密</span>
-                    <label class="switch">
-                        <input type="checkbox" id="encryption-switch" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1" for="project-id-input">ID <span class="font-normal text-gray-400">（非必填）</span></label>
-                    <input type="text" id="project-id-input" placeholder="用于关联禅道需求" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                <div class="grid grid-cols-2 gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" for="project-id-input">ID</label>
+                        <input type="text" id="project-id-input" placeholder="用于关联禅道需求" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                    </div>
+                    <div class="h-[42px] flex items-center justify-between bg-gray-50 px-3 rounded-lg border border-gray-100">
+                        <span class="text-sm font-medium text-gray-700">加密</span>
+                        <label class="switch">
+                            <input type="checkbox" id="encryption-switch" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
