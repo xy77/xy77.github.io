@@ -22,6 +22,8 @@ export function initSidebar({ api, showMessage }) {
   const pathStoryIds = new Map([['', '']]);
   let scope = 'all';
   let hideTimer = null;
+  let scopeMenuHideTimer = null;
+  let scopeMenuPinned = false;
 
   function rootCacheKey(targetScope = scope) {
     return `__root_projects__:${targetScope}`;
@@ -42,6 +44,28 @@ export function initSidebar({ api, showMessage }) {
     scopeMenu.classList.toggle('hidden', !isOpen);
     scopeTrigger.setAttribute('aria-expanded', String(isOpen));
     scopeTrigger.classList.toggle('sidebar-scope-trigger-open', isOpen);
+  }
+
+  function clearScopeMenuHideTimer() {
+    if (scopeMenuHideTimer) {
+      clearTimeout(scopeMenuHideTimer);
+      scopeMenuHideTimer = null;
+    }
+  }
+
+  function scheduleScopeMenuClose() {
+    clearScopeMenuHideTimer();
+    if (scopeMenuPinned) return;
+    scopeMenuHideTimer = setTimeout(() => {
+      scopeMenuHideTimer = null;
+      if (!scopeMenuPinned) setScopeMenuOpen(false);
+    }, 150);
+  }
+
+  function closeScopeMenu() {
+    clearScopeMenuHideTimer();
+    scopeMenuPinned = false;
+    setScopeMenuOpen(false);
   }
 
   function getStoryUrl(storyId) {
@@ -207,7 +231,7 @@ export function initSidebar({ api, showMessage }) {
     title.textContent = customTitle || pathNames.get(path) || (path ? path.split('/').pop() : '项目列表');
     renderTitleStoryLink(customStoryId === null ? pathStoryIds.get(path) : customStoryId);
     scopeControl.classList.toggle('hidden', path !== '');
-    if (path) setScopeMenuOpen(false);
+    if (path) closeScopeMenu();
 
     if (!path) {
       backButton.classList.add('hidden');
@@ -247,23 +271,28 @@ export function initSidebar({ api, showMessage }) {
     button.addEventListener('click', (event) => {
       event.stopPropagation();
       if (button.dataset.sidebarScope === scope) {
-        setScopeMenuOpen(false);
+        closeScopeMenu();
         return;
       }
       scope = button.dataset.sidebarScope;
       renderScopeControl();
-      setScopeMenuOpen(false);
+      closeScopeMenu();
       load('');
     });
   });
   scopeTrigger.addEventListener('click', (event) => {
     event.stopPropagation();
+    clearScopeMenuHideTimer();
+    scopeMenuPinned = true;
     setScopeMenuOpen(true);
   });
-  scopeControl.addEventListener('mouseenter', () => setScopeMenuOpen(true));
-  scopeControl.addEventListener('mouseleave', () => setScopeMenuOpen(false));
+  scopeControl.addEventListener('mouseenter', () => {
+    clearScopeMenuHideTimer();
+    setScopeMenuOpen(true);
+  });
+  scopeControl.addEventListener('mouseleave', scheduleScopeMenuClose);
   document.addEventListener('click', (event) => {
-    if (!scopeControl.contains(event.target)) setScopeMenuOpen(false);
+    if (!scopeControl.contains(event.target)) closeScopeMenu();
   });
   trigger.addEventListener('mouseenter', () => {
     clearTimeout(hideTimer);
