@@ -122,7 +122,7 @@ export function initSidebar({ api, showMessage }) {
             })
           : '未知时间';
 
-      row.className = 'px-3 py-2.5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors flex flex-col group';
+      row.className = 'px-2 py-2.5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors flex flex-col group';
       header.className = 'flex items-center gap-3 w-full';
       nameWrap.className = 'flex items-center gap-1 min-w-0 flex-grow';
       name.className = 'text-[13px] leading-5 font-normal truncate text-gray-100 group-hover:text-white';
@@ -258,8 +258,10 @@ export function initSidebar({ api, showMessage }) {
   });
   scopeTrigger.addEventListener('click', (event) => {
     event.stopPropagation();
-    setScopeMenuOpen(scopeMenu.classList.contains('hidden'));
+    setScopeMenuOpen(true);
   });
+  scopeControl.addEventListener('mouseenter', () => setScopeMenuOpen(true));
+  scopeControl.addEventListener('mouseleave', () => setScopeMenuOpen(false));
   document.addEventListener('click', (event) => {
     if (!scopeControl.contains(event.target)) setScopeMenuOpen(false);
   });
