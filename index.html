@@ -26,10 +26,18 @@
                     <path d="M14 3h7v7m0-7L10 14M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
                 </svg>
             </a>
-            <div id="sidebar-scope-control" class="ml-2 flex overflow-hidden rounded-md border border-white/20 text-sm shrink-0">
-                <button type="button" class="sidebar-scope-btn sidebar-scope-btn-active" data-sidebar-scope="all">全部</button>
-                <button type="button" class="sidebar-scope-btn border-l border-white/20" data-sidebar-scope="1">1</button>
-                <button type="button" class="sidebar-scope-btn border-l border-white/20" data-sidebar-scope="2">2</button>
+            <div id="sidebar-scope-control" class="relative ml-2 text-sm shrink-0">
+                <button id="sidebar-scope-trigger" type="button" class="sidebar-scope-trigger" aria-haspopup="true" aria-expanded="false">
+                    <span id="sidebar-scope-label">全部</span>
+                    <svg class="sidebar-scope-chevron w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="m6 9 6 6 6-6"></path>
+                    </svg>
+                </button>
+                <div id="sidebar-scope-menu" class="hidden sidebar-scope-menu" role="menu" aria-label="项目范围">
+                    <button type="button" class="sidebar-scope-btn sidebar-scope-btn-active" data-sidebar-scope="all" role="menuitem">全部</button>
+                    <button type="button" class="sidebar-scope-btn" data-sidebar-scope="1" role="menuitem">1</button>
+                    <button type="button" class="sidebar-scope-btn" data-sidebar-scope="2" role="menuitem">2</button>
+                </div>
             </div>
         </div>
         <div id="sidebar-content" class="p-2 flex-grow overflow-y-auto relative">

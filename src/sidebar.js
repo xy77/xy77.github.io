@@ -11,6 +11,9 @@ export function initSidebar({ api, showMessage }) {
   const backButton = document.getElementById('sidebar-back-btn');
   const loading = document.getElementById('sidebar-loading');
   const scopeControl = document.getElementById('sidebar-scope-control');
+  const scopeTrigger = document.getElementById('sidebar-scope-trigger');
+  const scopeLabel = document.getElementById('sidebar-scope-label');
+  const scopeMenu = document.getElementById('sidebar-scope-menu');
   const scopeButtons = Array.from(document.querySelectorAll('[data-sidebar-scope]'));
   const cache = new Map();
   const storyUrlCache = new Map();
@@ -32,6 +35,13 @@ export function initSidebar({ api, showMessage }) {
     scopeButtons.forEach((button) => {
       button.classList.toggle('sidebar-scope-btn-active', button.dataset.sidebarScope === scope);
     });
+    scopeLabel.textContent = scope === 'all' ? '全部' : scope;
+  }
+
+  function setScopeMenuOpen(isOpen) {
+    scopeMenu.classList.toggle('hidden', !isOpen);
+    scopeTrigger.setAttribute('aria-expanded', String(isOpen));
+    scopeTrigger.classList.toggle('sidebar-scope-trigger-open', isOpen);
   }
 
   function getStoryUrl(storyId) {
@@ -115,7 +125,7 @@ export function initSidebar({ api, showMessage }) {
       row.className = 'px-3 py-2.5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors flex flex-col group';
       header.className = 'flex items-center gap-3 w-full';
       nameWrap.className = 'flex items-center gap-1 min-w-0 flex-grow';
-      name.className = 'text-[15px] leading-5 font-semibold truncate text-gray-100 group-hover:text-white';
+      name.className = 'text-[13px] leading-5 font-normal truncate text-gray-100 group-hover:text-white';
       name.textContent = displayName;
       name.title = displayName;
       date.className = 'text-[11px] text-gray-500 group-hover:text-gray-300 mt-0.5 ml-8 truncate';
@@ -197,6 +207,7 @@ export function initSidebar({ api, showMessage }) {
     title.textContent = customTitle || pathNames.get(path) || (path ? path.split('/').pop() : '项目列表');
     renderTitleStoryLink(customStoryId === null ? pathStoryIds.get(path) : customStoryId);
     scopeControl.classList.toggle('hidden', path !== '');
+    if (path) setScopeMenuOpen(false);
 
     if (!path) {
       backButton.classList.add('hidden');
@@ -235,11 +246,22 @@ export function initSidebar({ api, showMessage }) {
   scopeButtons.forEach((button) => {
     button.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (button.dataset.sidebarScope === scope) return;
+      if (button.dataset.sidebarScope === scope) {
+        setScopeMenuOpen(false);
+        return;
+      }
       scope = button.dataset.sidebarScope;
       renderScopeControl();
+      setScopeMenuOpen(false);
       load('');
     });
+  });
+  scopeTrigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    setScopeMenuOpen(scopeMenu.classList.contains('hidden'));
+  });
+  document.addEventListener('click', (event) => {
+    if (!scopeControl.contains(event.target)) setScopeMenuOpen(false);
   });
   trigger.addEventListener('mouseenter', () => {
     clearTimeout(hideTimer);
