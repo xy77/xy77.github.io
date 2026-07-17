@@ -7,13 +7,16 @@ export function initSidebar({ api, showMessage }) {
   const sidebar = document.getElementById('github-sidebar');
   const list = document.getElementById('sidebar-list');
   const title = document.getElementById('sidebar-title');
+  const titleStoryLink = document.getElementById('sidebar-title-story-link');
   const backButton = document.getElementById('sidebar-back-btn');
   const loading = document.getElementById('sidebar-loading');
   const scopeControl = document.getElementById('sidebar-scope-control');
   const scopeButtons = Array.from(document.querySelectorAll('[data-sidebar-scope]'));
   const cache = new Map();
+  const storyUrlCache = new Map();
   const pathNames = new Map([['', '项目列表']]);
   const pathParents = new Map();
+  const pathStoryIds = new Map([['', '']]);
   let scope = 'all';
   let hideTimer = null;
 
@@ -29,6 +32,35 @@ export function initSidebar({ api, showMessage }) {
     scopeButtons.forEach((button) => {
       button.classList.toggle('sidebar-scope-btn-active', button.dataset.sidebarScope === scope);
     });
+  }
+
+  function getStoryUrl(storyId) {
+    const normalizedStoryId = String(storyId || '').trim();
+    if (!normalizedStoryId) return '';
+    if (!storyUrlCache.has(normalizedStoryId)) {
+      storyUrlCache.set(normalizedStoryId, `${storyUrlBase}${encodeURIComponent(normalizedStoryId)}`);
+    }
+    return storyUrlCache.get(normalizedStoryId);
+  }
+
+  function cacheInitialStoryUrls(items) {
+    items.slice(0, 10).forEach((item) => {
+      if (item.type === 'dir' && item.id) getStoryUrl(item.id);
+    });
+  }
+
+  function renderTitleStoryLink(storyId) {
+    const normalizedStoryId = String(storyId || '').trim();
+    titleStoryLink.classList.toggle('hidden', !normalizedStoryId);
+    if (!normalizedStoryId) {
+      titleStoryLink.removeAttribute('href');
+      titleStoryLink.removeAttribute('title');
+      titleStoryLink.removeAttribute('aria-label');
+      return;
+    }
+    titleStoryLink.href = getStoryUrl(normalizedStoryId);
+    titleStoryLink.title = `打开 ID：${normalizedStoryId}`;
+    titleStoryLink.setAttribute('aria-label', `打开 ID：${normalizedStoryId}`);
   }
 
   function renderMessage(text, className) {
@@ -59,10 +91,12 @@ export function initSidebar({ api, showMessage }) {
       return;
     }
 
+    cacheInitialStoryUrls(items);
+
     items.forEach((item) => {
       const row = document.createElement('li');
       const header = document.createElement('div');
-      const icon = document.createElement('span');
+      const icon = createSidebarItemIcon(item.type);
       const nameWrap = document.createElement('div');
       const name = document.createElement('span');
       const date = document.createElement('div');
@@ -78,15 +112,13 @@ export function initSidebar({ api, showMessage }) {
             })
           : '未知时间';
 
-      row.className = 'p-2 hover:bg-white/10 rounded cursor-pointer transition-colors flex flex-col group';
-      header.className = 'flex items-center space-x-2 w-full';
-      icon.className = 'text-sm shrink-0';
-      icon.textContent = item.type === 'dir' ? '📁' : '📄';
+      row.className = 'px-3 py-2.5 hover:bg-white/10 rounded-lg cursor-pointer transition-colors flex flex-col group';
+      header.className = 'flex items-center gap-3 w-full';
       nameWrap.className = 'flex items-center gap-1 min-w-0 flex-grow';
-      name.className = 'text-[13px] truncate text-gray-200 group-hover:text-white';
+      name.className = 'text-[15px] leading-5 font-semibold truncate text-gray-100 group-hover:text-white';
       name.textContent = displayName;
       name.title = displayName;
-      date.className = 'text-[10px] text-gray-500 group-hover:text-gray-300 mt-1 ml-6 truncate';
+      date.className = 'text-[11px] text-gray-500 group-hover:text-gray-300 mt-0.5 ml-8 truncate';
       date.textContent = formattedDate;
 
       nameWrap.appendChild(name);
@@ -103,8 +135,8 @@ export function initSidebar({ api, showMessage }) {
         const storyIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         const storyPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 
-        storyLink.className = 'sidebar-story-link ml-auto mr-1 shrink-0 w-6 h-6 rounded-md border border-slate-200 bg-slate-50 hover:bg-white text-blue-600 shadow-sm flex items-center justify-center';
-        storyLink.href = `${storyUrlBase}${encodeURIComponent(item.id)}`;
+        storyLink.className = 'sidebar-story-link ml-auto mr-0.5 shrink-0 w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center';
+        storyLink.href = getStoryUrl(item.id);
         storyLink.target = '_blank';
         storyLink.rel = 'noopener noreferrer';
         storyLink.title = `打开 ID：${item.id}`;
@@ -117,7 +149,7 @@ export function initSidebar({ api, showMessage }) {
         storyIcon.setAttribute('stroke-width', '2');
         storyIcon.setAttribute('stroke-linecap', 'round');
         storyIcon.setAttribute('stroke-linejoin', 'round');
-        storyIcon.classList.add('w-3.5', 'h-3.5');
+        storyIcon.classList.add('w-4', 'h-4');
         storyPath.setAttribute('d', 'M14 3h7v7m0-7L10 14M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6');
         storyIcon.appendChild(storyPath);
         storyLink.appendChild(storyIcon);
@@ -127,8 +159,9 @@ export function initSidebar({ api, showMessage }) {
 
       if (item.type === 'dir') {
         pathNames.set(item.path, displayName);
+        pathStoryIds.set(item.path, item.id ? String(item.id).trim() : '');
         if (item.parentPathOverride !== undefined) pathParents.set(item.path, item.parentPathOverride);
-        row.addEventListener('click', () => load(item.path, displayName));
+        row.addEventListener('click', () => load(item.path, displayName, item.id));
       } else {
         row.addEventListener('click', async () => {
           const fileUrl = `${config.publicBaseUrl}/${item.path}`;
@@ -141,10 +174,28 @@ export function initSidebar({ api, showMessage }) {
     });
   }
 
-  async function load(path, customTitle = null) {
+  function createSidebarItemIcon(type) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.classList.add('w-5', 'h-5', 'shrink-0', 'text-slate-300');
+    path.setAttribute(
+      'd',
+      type === 'dir'
+        ? 'M3.75 6A2.25 2.25 0 0 1 6 3.75h3.56c.6 0 1.17.24 1.6.66l1.14 1.14c.14.14.33.22.53.22H18A2.25 2.25 0 0 1 20.25 8v8.25A2.25 2.25 0 0 1 18 18.5H6a2.25 2.25 0 0 1-2.25-2.25V6Z'
+        : 'M6.75 3.75h6.3L17.25 8v12.25H6.75V3.75Zm6 1.8v3.2h3.2'
+    );
+    svg.appendChild(path);
+    return svg;
+  }
+
+  async function load(path, customTitle = null, customStoryId = null) {
     loading.classList.remove('hidden');
     list.replaceChildren();
     title.textContent = customTitle || pathNames.get(path) || (path ? path.split('/').pop() : '项目列表');
+    renderTitleStoryLink(customStoryId === null ? pathStoryIds.get(path) : customStoryId);
     scopeControl.classList.toggle('hidden', path !== '');
 
     if (!path) {

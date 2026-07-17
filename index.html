@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTML 预览</title>
     <link rel="icon" href="/ico.svg" type="image/svg+xml">
+    <link rel="dns-prefetch" href="//zen.dev.mugua.team">
+    <link rel="preconnect" href="https://zen.dev.mugua.team:8888" crossorigin>
     <script src="/auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -19,6 +21,11 @@
         <div class="p-4 border-b border-white/20 flex items-center bg-black z-10 shrink-0">
             <button id="sidebar-back-btn" class="hidden text-xs bg-white/20 hover:bg-white/30 px-2 py-1 rounded transition-colors whitespace-nowrap mr-3">&lt; 返回</button>
             <h3 id="sidebar-title" class="font-bold text-sm truncate flex-grow">项目列表</h3>
+            <a id="sidebar-title-story-link" class="hidden ml-2 mr-1 shrink-0 w-7 h-7 rounded-md text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center" target="_blank" rel="noopener noreferrer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true">
+                    <path d="M14 3h7v7m0-7L10 14M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6"></path>
+                </svg>
+            </a>
             <div id="sidebar-scope-control" class="ml-2 flex overflow-hidden rounded-md border border-white/20 text-sm shrink-0">
                 <button type="button" class="sidebar-scope-btn sidebar-scope-btn-active" data-sidebar-scope="all">全部</button>
                 <button type="button" class="sidebar-scope-btn border-l border-white/20" data-sidebar-scope="1">1</button>

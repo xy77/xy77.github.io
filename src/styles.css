@@ -92,7 +92,7 @@ input:checked + .slider:before {
     width: 1rem;
     height: 1rem;
     border-radius: 9999px;
-    background-color: rgba(24, 144, 255, 0.6);
+    background-color: #3b82f6;
     color: #fff;
     font-size: 0.65rem;
     font-weight: 700;
