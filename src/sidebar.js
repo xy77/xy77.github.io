@@ -1,5 +1,7 @@
 import { config } from './config.js';
 
+const storyUrlBase = 'https://zen.dev.mugua.team:8888/index.php?m=execution&f=storyView&storyID=';
+
 export function initSidebar({ api, showMessage }) {
   const trigger = document.getElementById('sidebar-trigger');
   const sidebar = document.getElementById('github-sidebar');
@@ -80,7 +82,7 @@ export function initSidebar({ api, showMessage }) {
       header.className = 'flex items-center space-x-2 w-full';
       icon.className = 'text-sm shrink-0';
       icon.textContent = item.type === 'dir' ? '📁' : '📄';
-      nameWrap.className = 'flex items-center gap-1 min-w-0';
+      nameWrap.className = 'flex items-center gap-1 min-w-0 flex-grow';
       name.className = 'text-[13px] truncate text-gray-200 group-hover:text-white';
       name.textContent = displayName;
       name.title = displayName;
@@ -95,6 +97,32 @@ export function initSidebar({ api, showMessage }) {
         nameWrap.appendChild(badge);
       }
       header.append(icon, nameWrap);
+
+      if (item.type === 'dir' && item.id) {
+        const storyLink = document.createElement('a');
+        const storyIcon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const storyPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+        storyLink.className = 'sidebar-story-link ml-auto mr-1 shrink-0 w-6 h-6 rounded-md border border-slate-200 bg-slate-50 hover:bg-white text-blue-600 shadow-sm flex items-center justify-center';
+        storyLink.href = `${storyUrlBase}${encodeURIComponent(item.id)}`;
+        storyLink.target = '_blank';
+        storyLink.rel = 'noopener noreferrer';
+        storyLink.title = `打开 ID：${item.id}`;
+        storyLink.setAttribute('aria-label', `打开 ID：${item.id}`);
+        storyLink.addEventListener('click', (event) => event.stopPropagation());
+
+        storyIcon.setAttribute('viewBox', '0 0 24 24');
+        storyIcon.setAttribute('fill', 'none');
+        storyIcon.setAttribute('stroke', 'currentColor');
+        storyIcon.setAttribute('stroke-width', '2');
+        storyIcon.setAttribute('stroke-linecap', 'round');
+        storyIcon.setAttribute('stroke-linejoin', 'round');
+        storyIcon.classList.add('w-3.5', 'h-3.5');
+        storyPath.setAttribute('d', 'M14 3h7v7m0-7L10 14M19 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h6');
+        storyIcon.appendChild(storyPath);
+        storyLink.appendChild(storyIcon);
+        header.appendChild(storyLink);
+      }
       row.append(header, date);
 
       if (item.type === 'dir') {

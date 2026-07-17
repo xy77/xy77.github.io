@@ -24,7 +24,8 @@ const ignoredNames = new Set([
   '.github',
   '.DS_Store',
   'node_modules',
-  '_summary.txt'
+  '_summary.txt',
+  '_summary.json'
 ]);
 
 const hiddenProjectDirectoryNames = new Set([
@@ -263,11 +264,26 @@ function getPathDate(relativePath, sourcePath) {
   return fs.statSync(sourcePath).mtime.toISOString();
 }
 
-function readFolderSummary(folderPath) {
+function readFolderMetadata(folderPath) {
+  const metadataPath = path.join(folderPath, '_summary.json');
+  if (fs.existsSync(metadataPath)) {
+    try {
+      const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      if (metadata && typeof metadata === 'object') {
+        return {
+          summary: typeof metadata.summary === 'string' ? metadata.summary.trim() : '',
+          id: typeof metadata.id === 'string' || typeof metadata.id === 'number' ? String(metadata.id).trim() : ''
+        };
+      }
+    } catch (error) {
+      console.warn(`Ignoring invalid project metadata: ${metadataPath}`);
+    }
+  }
+
   const summaryPath = path.join(folderPath, '_summary.txt');
-  if (!fs.existsSync(summaryPath)) return null;
+  if (!fs.existsSync(summaryPath)) return { summary: '', id: '' };
   const summary = fs.readFileSync(summaryPath, 'utf8').trim();
-  return summary || null;
+  return { summary, id: '' };
 }
 
 function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
@@ -281,12 +297,14 @@ function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
     const source = path.join(sourcePath, entry.name);
     if (entry.isDirectory()) {
       buildProjectManifestTree(source, nextRelative, tree);
+      const metadata = readFolderMetadata(source);
       items.push({
         type: 'dir',
         name: entry.name,
         path: toPosixPath(nextRelative),
         date: getPathDate(nextRelative, source),
-        summary: readFolderSummary(source) || entry.name
+        summary: metadata.summary || entry.name,
+        id: metadata.id
       });
       continue;
     }

@@ -19,6 +19,16 @@ function decodeGitHubText(content) {
   return new TextDecoder().decode(bytes);
 }
 
+function normalizeProjectMetadata(value, fallbackSummary) {
+  if (!value || typeof value !== 'object') {
+    return { summary: fallbackSummary, id: '' };
+  }
+  return {
+    summary: typeof value.summary === 'string' && value.summary.trim() ? value.summary.trim() : fallbackSummary,
+    id: typeof value.id === 'string' || typeof value.id === 'number' ? String(value.id).trim() : ''
+  };
+}
+
 export function createProjectApi(getToken) {
   let publicManifest = null;
 
@@ -68,18 +78,29 @@ export function createProjectApi(getToken) {
     }
   }
 
-  async function fetchFolderSummary(path) {
+  async function fetchFolderMetadata(path) {
     const token = getToken();
     if (!token) return null;
     try {
+      const metadataPath = encodeGitHubPath(`${path}/_summary.json`);
+      const metadataResponse = await fetch(
+        `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${metadataPath}?ref=${encodeURIComponent(config.branch)}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (metadataResponse.ok) {
+        const data = await metadataResponse.json();
+        return normalizeProjectMetadata(JSON.parse(decodeGitHubText(data.content)), path.split('/').pop());
+      }
+
       const summaryPath = encodeGitHubPath(`${path}/_summary.txt`);
-      const response = await fetch(
+      const summaryResponse = await fetch(
         `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${summaryPath}?ref=${encodeURIComponent(config.branch)}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (!response.ok) return null;
-      const data = await response.json();
-      return data.content ? decodeGitHubText(data.content) : null;
+      if (!summaryResponse.ok) return null;
+      const data = await summaryResponse.json();
+      const summary = data.content ? decodeGitHubText(data.content).trim() : '';
+      return { summary: summary || path.split('/').pop(), id: '' };
     } catch {
       return null;
     }
@@ -90,15 +111,21 @@ export function createProjectApi(getToken) {
       items.map(async (item) => {
         const date = item.date || (await fetchPathCommitDate(item.path));
         let summary = item.summary || item.name;
-        if (item.type === 'dir' && !item.summary) {
-          summary = (await fetchFolderSummary(item.path)) || summary;
+        let id = item.id ? String(item.id).trim() : '';
+        if (item.type === 'dir' && (!item.summary || !id)) {
+          const metadata = await fetchFolderMetadata(item.path);
+          if (metadata) {
+            summary = metadata.summary || summary;
+            id = metadata.id || id;
+          }
         }
         return {
           ...item,
           key: item.key || `${item.projectScope || '1'}:${item.name}`,
           publishName: item.publishName || item.name,
           date: date || '1970-01-01T00:00:00Z',
-          summary
+          summary,
+          id
         };
       })
     );
@@ -144,7 +171,7 @@ export function createProjectApi(getToken) {
   }
 
   function isVisibleSidebarItem(item) {
-    if (item.name === '_summary.txt' || item.name === '.DS_Store') return false;
+    if (item.name === '_summary.txt' || item.name === '_summary.json' || item.name === '.DS_Store') return false;
     if (item.type === 'dir') return !hiddenSidebarDirectories.has(item.name);
     return item.type === 'file' && !hiddenSidebarExtensions.has(getFileExtension(item.name));
   }

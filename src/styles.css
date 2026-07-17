@@ -86,7 +86,7 @@ input:checked + .slider:before {
     color: white;
 }
 .sidebar-project-scope-badge {
-    display: inline-flex;
+    display: none;
     align-items: center;
     justify-content: center;
     width: 1rem;
@@ -99,12 +99,25 @@ input:checked + .slider:before {
     line-height: 1;
     flex-shrink: 0;
 }
+.group:hover .sidebar-project-scope-badge {
+    display: inline-flex;
+}
 .sidebar-project-scope-badge-2 {
     background-color: rgba(18, 163, 74, 0.8);
+}
+.sidebar-story-link {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.92);
+    transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+.group:hover .sidebar-story-link {
+    opacity: 1;
+    pointer-events: auto;
+    transform: scale(1);
 }
 
 
 #auth-password:focus {
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 10%);
 }
-
