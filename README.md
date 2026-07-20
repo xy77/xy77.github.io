@@ -5,15 +5,18 @@ GitHub Pages editor shell and deployment pipeline for the `xy77/zen` project pag
 ## Development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
+
+`node_modules/` 不提交到 GitHub；在新的本机环境或拉取代码后，请先执行 `npm ci`，它会依据已跟踪的 `package-lock.json` 恢复构建依赖。
 
 The Vite development server serves the editor at `http://localhost:5173/`.
 
 ## Production build
 
 ```bash
+npm ci
 npm run build
 PRIVATE_SOURCE_ROOT=/absolute/path/to/zen node .github/scripts/build-pages.js
 ```

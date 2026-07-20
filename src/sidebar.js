@@ -93,7 +93,6 @@ export function initSidebar({ api, showMessage }) {
       return;
     }
     titleStoryLink.href = getStoryUrl(normalizedStoryId);
-    titleStoryLink.title = `打开 ID：${normalizedStoryId}`;
     titleStoryLink.setAttribute('aria-label', `打开 ID：${normalizedStoryId}`);
   }
 
@@ -173,7 +172,7 @@ export function initSidebar({ api, showMessage }) {
         storyLink.href = getStoryUrl(item.id);
         storyLink.target = '_blank';
         storyLink.rel = 'noopener noreferrer';
-        storyLink.title = `打开 ID：${item.id}`;
+        storyLink.dataset.storyId = String(item.id);
         storyLink.setAttribute('aria-label', `打开 ID：${item.id}`);
         storyLink.addEventListener('click', (event) => event.stopPropagation());
 

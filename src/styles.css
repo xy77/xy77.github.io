@@ -142,10 +142,34 @@ input:checked + .slider:before {
     background-color: rgba(18, 163, 74, 0.8);
 }
 .sidebar-story-link {
+    position: relative;
     opacity: 0;
     pointer-events: none;
     transform: scale(0.92);
     transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+.sidebar-story-link::before {
+    content: attr(data-story-id);
+    position: absolute;
+    right: calc(100% + 0.35rem);
+    top: 50%;
+    padding: 0.18rem 0.38rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.96);
+    color: rgb(226, 232, 240);
+    font-size: 0.65rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-50%);
+    visibility: hidden;
+}
+.sidebar-story-link:hover::before {
+    opacity: 1;
+    visibility: visible;
 }
 .group:hover .sidebar-story-link {
     opacity: 1;
