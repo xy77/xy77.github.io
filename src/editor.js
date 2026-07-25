@@ -144,42 +144,36 @@ function __ZenBlocks() {
   return Array.from(document.querySelectorAll('[data-md-line]'));
 }
 
-function __ZenNearestBlock(line) {
-  let nearest = null;
-  for (const block of __ZenBlocks()) {
-    const blockLine = Number(block.dataset.mdLine || 1);
-    if (blockLine <= line) nearest = block;
-    else break;
-  }
-  return nearest || __ZenBlocks()[0] || null;
+function __ZenClampPercentage(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(1, Math.max(0, number));
 }
 
-function __ZenActiveLine() {
-  const blocks = __ZenBlocks();
-  if (!blocks.length) return 1;
-  let active = Number(blocks[0].dataset.mdLine || 1);
-  for (const block of blocks) {
-    if (block.getBoundingClientRect().top <= 1) active = Number(block.dataset.mdLine || active);
-    else break;
-  }
-  return active;
+function __ZenMaxScrollTop() {
+  const doc = document.documentElement;
+  return Math.max(0, doc.scrollHeight - window.innerHeight);
 }
 
-function __ZenScrollToLine(line) {
-  const block = __ZenNearestBlock(Number(line || 1));
-  if (!block) return;
+function __ZenScrollPercentage() {
+  const maxScrollTop = __ZenMaxScrollTop();
+  return maxScrollTop ? window.scrollY / maxScrollTop : 0;
+}
+
+function __ZenScrollToPercentage(percentage) {
+  const nextScrollTop = __ZenClampPercentage(percentage) * __ZenMaxScrollTop();
   __ZenSyncing = true;
-  block.scrollIntoView({ block: 'start' });
+  window.scrollTo({ top: nextScrollTop, behavior: 'auto' });
   window.setTimeout(() => {
     __ZenSyncing = false;
   }, 80);
 }
 
 window.addEventListener('message', (event) => {
-  if (event.data?.type === '${markdownScrollMessageFromEditor}') __ZenScrollToLine(event.data.line);
+  if (event.data?.type === '${markdownScrollMessageFromEditor}') __ZenScrollToPercentage(event.data.percentage);
   if (event.data?.type === '${markdownUpdateMessageFromEditor}') {
     __ZenRenderMarkdown(String(event.data.markdown || ''));
-    __ZenScrollToLine(event.data.line);
+    __ZenScrollToPercentage(event.data.percentage);
   }
 });
 
@@ -187,7 +181,7 @@ window.addEventListener('scroll', () => {
   if (__ZenSyncing) return;
   window.cancelAnimationFrame(__ZenScrollFrame);
   __ZenScrollFrame = window.requestAnimationFrame(() => {
-    window.parent.postMessage({ type: '${markdownScrollMessageFromPreview}', line: __ZenActiveLine() }, '*');
+    window.parent.postMessage({ type: '${markdownScrollMessageFromPreview}', percentage: __ZenScrollPercentage() }, '*');
   });
 });
 
@@ -294,7 +288,7 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
         pendingRefreshContent = null;
         return;
       }
-      syncPreviewToEditorLine(getEditorTopLine());
+      syncPreviewToEditorPercentage(getEditorScrollPercentage());
     });
 
     handle.addEventListener('pointerdown', (event) => {
@@ -351,36 +345,49 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
     postMarkdownUpdate(content);
   }
 
-  function getEditorTopLine() {
-    return editor.getVisibleRanges()[0]?.startLineNumber || 1;
+  function clampPercentage(value) {
+    if (!Number.isFinite(value)) return 0;
+    return Math.min(1, Math.max(0, value));
   }
 
-  function syncPreviewToEditorLine(line) {
+  function getEditorScrollableHeight() {
+    return Math.max(0, editor.getScrollHeight() - editor.getLayoutInfo().height);
+  }
+
+  function getEditorScrollPercentage() {
+    const scrollableHeight = getEditorScrollableHeight();
+    return scrollableHeight ? editor.getScrollTop() / scrollableHeight : 0;
+  }
+
+  function syncPreviewToEditorPercentage(percentage) {
     if (!iframe?.contentWindow || !container.classList.contains('has-md-preview') || isSyncingFromPreview) return;
     isSyncingFromEditor = true;
-    iframe.contentWindow.postMessage({ type: markdownScrollMessageFromEditor, line }, '*');
+    iframe.contentWindow.postMessage(
+      { type: markdownScrollMessageFromEditor, percentage: clampPercentage(percentage) },
+      '*'
+    );
     clearTimeout(syncingFromEditorTimer);
     syncingFromEditorTimer = setTimeout(() => {
       isSyncingFromEditor = false;
-    }, 120);
+    }, 100);
   }
 
   function postMarkdownUpdate(content) {
     if (!iframe?.contentWindow) return;
     iframe.contentWindow.postMessage(
-      { type: markdownUpdateMessageFromEditor, markdown: content, line: getEditorTopLine() },
+      { type: markdownUpdateMessageFromEditor, markdown: content, percentage: getEditorScrollPercentage() },
       '*'
     );
   }
 
-  function syncEditorToPreviewLine(line) {
+  function syncEditorToPreviewPercentage(percentage) {
     if (!container.classList.contains('has-md-preview') || isSyncingFromEditor) return;
     isSyncingFromPreview = true;
-    editor.revealLineNearTop(Math.max(1, Number(line || 1)));
+    editor.setScrollTop(clampPercentage(percentage) * getEditorScrollableHeight());
     clearTimeout(syncingFromPreviewTimer);
     syncingFromPreviewTimer = setTimeout(() => {
       isSyncingFromPreview = false;
-    }, 120);
+    }, 100);
   }
 
   function hide() {
@@ -398,12 +405,12 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
 
   editor.onDidScrollChange((event) => {
     if (!event.scrollTopChanged) return;
-    syncPreviewToEditorLine(getEditorTopLine());
+    syncPreviewToEditorPercentage(getEditorScrollPercentage());
   });
 
   window.addEventListener('message', (event) => {
     if (event.source !== iframe?.contentWindow || event.data?.type !== markdownScrollMessageFromPreview) return;
-    syncEditorToPreviewLine(event.data.line);
+    syncEditorToPreviewPercentage(event.data.percentage);
   });
 
   return { hide, isVisible: () => container.classList.contains('has-md-preview'), refresh, show };
