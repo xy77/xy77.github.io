@@ -599,10 +599,10 @@ function initMarkdownInsertMenu({ editor, isActive }) {
     };
 
     menu.replaceChildren();
-    snippets.forEach((snippet) => {
+    snippets.forEach((snippet, index) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.textContent = snippet.label;
+      button.textContent = `${index + 1} - ${snippet.label}`;
       button.addEventListener('click', (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -630,6 +630,31 @@ function initMarkdownInsertMenu({ editor, isActive }) {
   document.addEventListener('pointerdown', (event) => {
     if (!menu.contains(event.target)) close();
   });
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (menu.classList.contains('hidden')) return;
+
+      const shortcutIndex = Number(event.key) - 1;
+      const isNumberShortcut =
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        Number.isInteger(shortcutIndex) &&
+        shortcutIndex >= 0 &&
+        shortcutIndex < snippets.length;
+
+      if (!isNumberShortcut) {
+        close();
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      insertSnippet(snippets[shortcutIndex]);
+    },
+    true
+  );
   document.addEventListener('mouseover', (event) => {
     if (!isActive()) return;
     const item = event.target.closest('.action-item, [role="menuitem"]');
