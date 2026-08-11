@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IMG Placeholder</title>
+  <link rel="icon" href="/ico.svg" type="image/svg+xml">
   <style>
     :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f4f7fb; }
     * { box-sizing: border-box; }
@@ -55,6 +56,16 @@
     .small-btn { flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 14px; background: #fff; color: #334155; font-size: 12px; font-weight: 600; }
     .small-btn:hover { border-color: #2563eb; color: #1d4ed8; }
     .hidden { display: none !important; }
+    .link-button { border: 0; padding: 0; margin-right: 12px; background: transparent; color: #2563eb; font-size: 12px; cursor: pointer; }
+    .img-task-view { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 2rem; background: rgba(15,23,42,.22); backdrop-filter: blur(16px) saturate(1.12); }
+    .img-task-view.hidden { display: none; }
+    .img-task-panel { width: min(680px, 90vw); padding: 1.25rem; border: 1px solid rgba(255,255,255,.65); border-radius: 14px; background: rgba(248,250,252,.78); box-shadow: 0 24px 80px rgba(15,23,42,.28); }
+    .img-task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .img-task-card { display: flex; flex-direction: column; gap: 5px; padding: 10px; border: 1px solid rgba(148,163,184,.42); border-radius: 9px; background: rgba(255,255,255,.74); color: #1e293b; text-decoration: none; transition: transform .16s ease, box-shadow .16s ease; }
+    .img-task-card:hover, .img-task-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15,23,42,.14); outline: none; }
+    .img-task-preview { height: 102px; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(135deg, #dbeafe 0 50%, #bfdbfe 50% 100%); color: #2563eb; font-size: 38px; }
+    .img-task-card strong { font-size: 14px; }
+    .img-task-card small { color: #64748b; font-size: 11px; }
     @media (max-width: 1279px) { .controls { width: 360px; flex-basis: 360px; } }
     @media (max-width: 760px) { .topbar { padding: 0 16px; } .workspace { height: auto; min-height: calc(100vh - 64px); flex-direction: column; } .controls { width: 100%; flex-basis: auto; max-height: none; border-right: 0; } .preview { min-height: 520px; } .preview-stage { min-height: 280px; } .result-line { flex-wrap: wrap; } .result-line input { min-width: 0; flex: 1 1 100%; } }
   </style>
@@ -70,7 +81,7 @@
       </nav>
       <div class="panel active" data-panel="picsum">
         <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度</label><input id="lp-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（不填则为正方形）</label><input id="lp-height" type="number" value="400" min="1" max="5000"></div></div><p class="hint">宽度和高度范围：1 - 5000</p></div>
-        <div class="field"><label>图片 ID / 随机种子</label><div class="segmented" data-choice><button class="active" data-choice-value="id">图片ID</button><button data-choice-value="seed">seed</button></div><div class="segmented-input choice-input"><span>ID</span><input id="lp-id" type="number" min="0" max="1084" placeholder="请输入 ID"></div><div class="segmented-input choice-input hidden"><span>Seed</span><input id="lp-seed" type="number" min="0" placeholder="请输入 seed"></div><p class="hint">图片 ID 允许输入 0 - 1084。</p></div>
+        <div class="field"><label>图片 ID / seed</label><div class="segmented" data-choice><button class="active" data-choice-value="id">图片ID</button><button data-choice-value="seed">seed</button></div><div class="segmented-input choice-input"><span>ID</span><input id="lp-id" type="number" min="0" max="1084" placeholder="请输入 ID"></div><div class="segmented-input choice-input hidden"><span>seed</span><input id="lp-seed" type="number" min="0" placeholder="请输入 seed"></div><p class="hint">图片 ID 允许输入 0 - 1084。</p></div>
         <hr>
         <div class="field"><label>图片格式</label><div class="segmented" data-format="lp-format"><button class="active" data-value=".jpg">.jpg</button><button data-value=".webp">.webp</button></div></div>
         <div class="field"><div class="switch-pair"><label class="switch-row">黑白效果<input id="lp-grayscale" type="checkbox"></label><label class="switch-row">防止缓存<input id="lp-nocache" type="checkbox" checked></label></div></div>
@@ -80,25 +91,32 @@
         <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度</label><input id="ph-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（不填则为正方形）</label><input id="ph-height" type="number" value="400" min="1" max="5000"></div></div></div>
         <div class="field"><div class="color-row"><div><label>背景颜色</label><input id="ph-bg" type="color" value="#cccccc"></div><div><label>文字颜色</label><input id="ph-text-color" type="color" value="#999999"></div></div></div>
         <div class="field"><label>自定义显示文字（暂不支持中文）</label><input id="ph-text" type="text" placeholder="默认显示图片尺寸"></div>
-        <div class="field"><label>图片格式</label><div class="segmented" data-format="ph-format"><button class="active" data-value="">SVG</button><button data-value="png">PNG</button><button data-value="jpg">JPG</button><button data-value="webp">WebP</button><button data-value="gif">GIF</button><button data-value="avif">AVIF</button></div></div>
+        <div class="field"><label>图片格式</label><div class="segmented" data-format="ph-format"><button class="active" data-value=".svg">.svg</button><button data-value=".png">.png</button><button data-value=".jpg">.jpg</button><button data-value=".webp">.webp</button><button data-value=".gif">.gif</button><button data-value=".avif">.avif</button></div></div>
       </div>
       <div class="panel" data-panel="dummy">
         <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度</label><input id="di-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（不填则为正方形）</label><input id="di-height" type="number" value="400" min="1" max="5000"></div></div></div>
         <div class="field"><div class="color-row"><div><label>背景颜色</label><input id="di-bg" type="color" value="#cccccc"></div><div><label>文字颜色</label><input id="di-text-color" type="color" value="#000000"></div></div></div>
         <div class="field"><label>自定义显示文字（暂不支持中文）</label><input id="di-text" type="text" placeholder="默认显示图片尺寸"></div>
-        <div class="field"><label>图片格式</label><div class="segmented" data-format="di-format"><button class="active" data-value="">GIF</button><button data-value=".png">PNG</button><button data-value=".jpg">JPG</button><button data-value=".webp">WebP</button></div></div>
+        <div class="field"><label>图片格式</label><div class="segmented" data-format="di-format"><button class="active" data-value=".gif">.gif</button><button data-value=".bmp">.bmp</button><button data-value=".svg">.svg</button><button data-value=".png">.png</button><button data-value=".jpg">.jpg</button></div></div>
       </div>
     </section>
     <section class="preview">
       <div class="preview-stage"><div class="preview-frame"><img id="preview-image" alt="图片预览"></div></div>
       <div class="result">
-        <div class="result-head"><span>图片地址</span><a id="open-new-tab" target="_blank" rel="noopener">新窗口打开</a></div>
+        <div class="result-head"><span>图片地址</span><span><button class="link-button" id="download-image" type="button">下载图片</button><a id="open-new-tab" target="_blank" rel="noopener">新窗口打开</a></span></div>
         <div class="result-line"><input id="output-url" readonly><button class="small-btn" id="copy-url">复制地址</button></div>
         <div class="result-head" style="margin-top:16px"><span>代码片段</span><div class="segmented" style="width:128px" data-snippet><button class="active" data-value="html">HTML</button><button data-value="markdown">Markdown</button></div></div>
         <div class="result-line"><textarea id="output-snippet" readonly rows="2"></textarea><button class="small-btn" id="copy-snippet">复制代码</button></div>
       </div>
     </section>
   </main>
+  <div id="img-task-view" class="img-task-view hidden" aria-hidden="true">
+    <div class="img-task-panel" role="dialog" aria-label="快捷入口">
+      <div class="img-task-grid">
+        <a class="img-task-card" href="/" aria-label="打开首页"><div class="img-task-preview">⌂</div><strong>首页</strong><small>xy77.github.io</small></a>
+      </div>
+    </div>
+  </div>
   <script>
     const state = { tab: 'picsum', format: '.jpg', snippet: 'html', url: '', choice: 'id' };
     const $ = id => document.getElementById(id);
@@ -112,7 +130,7 @@
       const params = []; if ($('lp-grayscale').checked) params.push('grayscale'); const blur = Number($('lp-blur').value); if (blur) params.push('blur=' + blur); if (!id && !seed && $('lp-nocache').checked) params.push('random=' + Date.now());
       return url + (params.length ? '?' + params.join('&') : '');
     }
-    function placeholdUrl() { const [w, h] = currentDimensions('ph'); let url = 'https://placehold.co/' + w + 'x' + h + '/' + color('ph-bg') + '/' + color('ph-text-color') + (state.format ? '/' + state.format : ''); const text = value('ph-text'); return text ? url + '?text=' + encodeURIComponent(text).replace(/%20/g, '+') : url; }
+    function placeholdUrl() { const [w, h] = currentDimensions('ph'); const format = state.format.replace(/^\./, ''); let url = 'https://placehold.co/' + w + 'x' + h + '/' + color('ph-bg') + '/' + color('ph-text-color') + (format ? '/' + format : ''); const text = value('ph-text'); return text ? url + '?text=' + encodeURIComponent(text).replace(/%20/g, '+') : url; }
     function dummyUrl() { const [w, h] = currentDimensions('di'); let url = 'https://dummyimage.com/' + w + 'x' + h + state.format + '/' + color('di-bg').toUpperCase() + '/' + color('di-text-color').toUpperCase(); const text = value('di-text'); return text ? url + '?text=' + encodeURIComponent(text).replace(/%20/g, '+') : url; }
     function generate() { state.url = state.tab === 'picsum' ? picsumUrl() : state.tab === 'placehold' ? placeholdUrl() : dummyUrl(); $('output-url').value = state.url; $('open-new-tab').href = state.url; const [w, h] = currentDimensions(state.tab === 'picsum' ? 'lp' : state.tab === 'placehold' ? 'ph' : 'di'); const alt = '占位图 ' + w + 'x' + h; $('output-snippet').value = state.snippet === 'html' ? '<img src="' + state.url + '" alt="' + alt + '">' : '![' + alt + '](' + state.url + ')'; $('preview-image').src = state.url; }
     document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab,.panel').forEach(el => el.classList.remove('active')); btn.classList.add('active'); document.querySelector('[data-panel="' + btn.dataset.tab + '"]').classList.add('active'); state.tab = btn.dataset.tab; state.format = document.querySelector('[data-panel="' + state.tab + '"] [data-format] .active')?.dataset.value || ''; generate(); }));
@@ -121,6 +139,11 @@
     document.querySelectorAll('[data-snippet] button').forEach(btn => btn.addEventListener('click', () => { btn.parentElement.querySelectorAll('button').forEach(item => item.classList.remove('active')); btn.classList.add('active'); state.snippet = btn.dataset.value; generate(); }));
     document.querySelectorAll('input').forEach(input => input.addEventListener('input', () => { if (input.id === 'lp-blur-val') return; if (input.id === 'lp-blur') $('lp-blur-val').textContent = input.value; generate(); }));
     $('lp-id').addEventListener('blur', () => { if (Number(value('lp-id')) > 1084) $('lp-id').value = '1'; generate(); });
+    $('download-image').addEventListener('click', async () => { try { const response = await fetch(state.url); const blob = await response.blob(); const link = document.createElement('a'); const extension = state.format || '.jpg'; link.href = URL.createObjectURL(blob); link.download = 'xy77.github.io' + extension; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); } catch { window.open(state.url, '_blank', 'noopener'); } });
+    const imgTaskView = $('img-task-view'); let imgBlankFocused = false; let imgSpacePresses = [];
+    document.body.addEventListener('click', event => { imgBlankFocused = event.target === document.body; if (imgBlankFocused) document.body.focus({ preventScroll: true }); });
+    document.addEventListener('keydown', event => { if (event.code !== 'Space' || event.repeat || !imgBlankFocused || event.target !== document.body) return; event.preventDefault(); const now = Date.now(); imgSpacePresses = imgSpacePresses.filter(time => now - time < 900); imgSpacePresses.push(now); if (imgSpacePresses.length >= 4) { imgTaskView.classList.remove('hidden'); imgTaskView.setAttribute('aria-hidden', 'false'); imgSpacePresses = []; } });
+    imgTaskView.addEventListener('click', event => { if (event.target === imgTaskView) { imgTaskView.classList.add('hidden'); imgTaskView.setAttribute('aria-hidden', 'true'); } });
     async function copy(id) { try { await navigator.clipboard.writeText($(id).value); } catch { $(id).select(); document.execCommand('copy'); } }
     $('copy-url').addEventListener('click', () => copy('output-url')); $('copy-snippet').addEventListener('click', () => copy('output-snippet')); generate();
   </script>
