@@ -13,7 +13,8 @@ export default defineConfig({
         index: resolve(import.meta.dirname, 'index.html'),
         auth: resolve(import.meta.dirname, 'auth.html'),
         preview: resolve(import.meta.dirname, 'preview.html'),
-        img: resolve(import.meta.dirname, 'src/img/index.html')
+        img: resolve(import.meta.dirname, 'src/img/index.html'),
+        cursor: resolve(import.meta.dirname, 'src/cursor/index.html')
       }
     }
   }

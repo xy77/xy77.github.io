@@ -362,6 +362,11 @@ function copyApplicationBuild() {
   if (fs.existsSync(imgBuildRoot)) {
     copyDirectory(imgBuildRoot, path.join(outputRoot, 'img'));
   }
+
+  const cursorBuildRoot = path.join(appBuildRoot, 'src', 'cursor');
+  if (fs.existsSync(cursorBuildRoot)) {
+    copyDirectory(cursorBuildRoot, path.join(outputRoot, 'cursor'));
+  }
 }
 
 function processPrivateEntry(sourcePath, relativePath = '') {
