@@ -357,6 +357,11 @@ function copyApplicationBuild() {
     throw new Error(`Vite application build not found: ${appBuildRoot}`);
   }
   copyDirectory(appBuildRoot, outputRoot);
+
+  const imgBuildRoot = path.join(appBuildRoot, 'src', 'img');
+  if (fs.existsSync(imgBuildRoot)) {
+    copyDirectory(imgBuildRoot, path.join(outputRoot, 'img'));
+  }
 }
 
 function processPrivateEntry(sourcePath, relativePath = '') {

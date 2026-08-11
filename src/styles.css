@@ -1,5 +1,33 @@
 @import "tailwindcss";
 
+.task-view {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: rgba(15, 23, 42, 0.22);
+    backdrop-filter: blur(16px) saturate(1.12);
+}
+.task-view.hidden { display: none; }
+.task-view-panel {
+    width: min(680px, 90vw);
+    padding: 1.25rem;
+    border: 1px solid rgba(255,255,255,.65);
+    border-radius: 14px;
+    background: rgba(248,250,252,.78);
+    box-shadow: 0 24px 80px rgba(15,23,42,.28);
+}
+.task-view-header { display: flex; justify-content: space-between; margin-bottom: 1rem; color: #1e293b; font-size: 14px; font-weight: 700; }
+.task-view-domain { color: #64748b; font-size: 12px; font-weight: 500; }
+.task-view-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.task-card { display: flex; flex-direction: column; gap: 5px; padding: 10px; border: 1px solid rgba(148,163,184,.42); border-radius: 9px; background: rgba(255,255,255,.74); color: #1e293b; text-decoration: none; transition: transform .16s ease, box-shadow .16s ease; }
+.task-card:hover, .task-card:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15,23,42,.14); outline: none; }
+.task-card-preview { height: 102px; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(135deg, #dbeafe 0 50%, #bfdbfe 50% 100%); color: #2563eb; font-size: 38px; }
+.task-card strong { font-size: 14px; }
+.task-card small { color: #64748b; font-size: 11px; }
+
 .folder-btn-active {
     border-color: #1890ff !important;
     background-color: #1890ff !important;

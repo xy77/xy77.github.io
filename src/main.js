@@ -15,6 +15,32 @@ const clickWords = [
 
 initBackgroundEffects({ zIndex: 99, count: 399, clickWords });
 
+const taskView = document.getElementById('task-view');
+let blankFocused = false;
+let spacePresses = [];
+document.body.addEventListener('click', (event) => {
+  blankFocused = event.target === document.body;
+  if (blankFocused) document.body.focus({ preventScroll: true });
+});
+document.addEventListener('keydown', (event) => {
+  if (event.code !== 'Space' || event.repeat || !blankFocused || event.target !== document.body) return;
+  event.preventDefault();
+  const now = Date.now();
+  spacePresses = spacePresses.filter(time => now - time < 900);
+  spacePresses.push(now);
+  if (spacePresses.length >= 4) {
+    taskView.classList.remove('hidden');
+    taskView.setAttribute('aria-hidden', 'false');
+    spacePresses = [];
+  }
+});
+taskView?.addEventListener('click', (event) => {
+  if (event.target === taskView) {
+    taskView.classList.add('hidden');
+    taskView.setAttribute('aria-hidden', 'true');
+  }
+});
+
 const ui = initUi();
 const tokenStore = initPublishToken(ui);
 const api = createProjectApi(tokenStore.get);

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMG Placeholder</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #172033; background: #f4f7fb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; min-height: 100vh; display: flex; flex-direction: column; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .topbar { height: 64px; padding: 0 28px; display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.92); border-bottom: 1px solid #e1e7f0; }
+    .brand-mark { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: #2563eb; color: #fff; font-size: 18px; font-weight: 700; }
+    h1 { margin: 0; font-size: 19px; letter-spacing: 0; }
+    .workspace { width: min(75vw, 2048px); min-width: 1280px; height: calc(100vh - 64px); margin: 0 auto; display: flex; overflow: hidden; background: #fff; }
+    .controls { width: 420px; flex: 0 0 420px; overflow-y: auto; border-right: 1px solid #e1e7f0; }
+    .tabs { display: grid; grid-template-columns: repeat(3, 1fr); padding: 16px 16px 0; border-bottom: 1px solid #e1e7f0; }
+    .tab { min-height: 42px; padding: 0 8px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #718096; font-weight: 600; font-size: 13px; }
+    .tab.active { color: #2563eb; border-bottom-color: #2563eb; }
+    .panel { display: none; padding: 24px; }
+    .panel.active { display: block; }
+    .field { margin-bottom: 18px; }
+    .field label { display: block; margin-bottom: 7px; color: #526176; font-size: 12px; font-weight: 600; }
+    .dimensions { display: grid; grid-template-columns: 1fr 20px 1fr; align-items: end; gap: 10px; }
+    .dimension-field label { margin-bottom: 7px; }
+    .times { padding-bottom: 11px; text-align: center; color: #9aa7ba; }
+    input, textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 11px; color: #172033; background: #f8fafc; outline: none; }
+    input:focus, textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    input[type="range"] { padding: 0; accent-color: #2563eb; }
+    .segmented { display: flex; padding: 3px; gap: 3px; border: 1px solid #cbd5e1; border-radius: 7px; background: #eef2f7; }
+    .segmented button { flex: 1; border: 0; border-radius: 5px; padding: 8px 6px; background: transparent; color: #66758a; font-size: 12px; font-weight: 600; }
+    .segmented button.active { background: #fff; color: #1d4ed8; box-shadow: 0 1px 3px rgba(15,23,42,.12); }
+    .segmented-input { display: flex; overflow: hidden; border: 1px solid #cbd5e1; border-radius: 7px; background: #f8fafc; }
+    .segmented-input span { display: grid; place-items: center; min-width: 70px; padding: 0 10px; border-right: 1px solid #cbd5e1; background: #eef2f7; color: #526176; font-size: 12px; font-weight: 600; }
+    .segmented-input input { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    .hint { margin: 6px 0 0; color: #8996a8; font-size: 11px; line-height: 1.5; }
+    hr { margin: 22px 0; border: 0; border-top: 1px solid #e8edf4; }
+    .switch-row, .range-head, .result-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .switch-row { color: #526176; font-size: 13px; font-weight: 600; }
+    .switch-row input { width: auto; accent-color: #2563eb; }
+    .preview { min-width: 0; flex: 1; display: flex; flex-direction: column; background: #f7f9fc; }
+    .preview-stage { min-height: 0; flex: 1; display: grid; place-items: center; padding: 30px; }
+    .preview-frame { max-width: 100%; max-height: 100%; overflow: hidden; border-radius: 8px; background: #fff; box-shadow: 0 14px 40px rgba(15,23,42,.14); }
+    #preview-image { display: block; max-width: 100%; max-height: 100%; object-fit: contain; transition: opacity .2s; }
+    .result { padding: 18px 26px 24px; background: #fff; border-top: 1px solid #e1e7f0; }
+    .result-head { margin-bottom: 8px; color: #526176; font-size: 12px; font-weight: 700; }
+    .result-line { display: flex; gap: 8px; }
+    .result-line input, textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .small-btn { flex: 0 0 auto; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 14px; background: #fff; color: #334155; font-size: 12px; font-weight: 600; }
+    .small-btn:hover { border-color: #2563eb; color: #1d4ed8; }
+    .hidden { display: none !important; }
+    @media (max-width: 1279px) { .controls { width: 360px; flex-basis: 360px; } }
+    @media (max-width: 760px) { .topbar { padding: 0 16px; } .workspace { height: auto; min-height: calc(100vh - 64px); flex-direction: column; } .controls { width: 100%; flex-basis: auto; max-height: none; border-right: 0; } .preview { min-height: 520px; } .preview-stage { min-height: 280px; } .result-line { flex-wrap: wrap; } .result-line input { min-width: 0; flex: 1 1 100%; } }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="brand-mark">▧</div><h1>IMG Placeholder</h1></header>
+  <main class="workspace">
+    <section class="controls">
+      <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="picsum">高清图</button>
+        <button class="tab" data-tab="placehold">占位图（左上）</button>
+        <button class="tab" data-tab="dummy">占位图（居中）</button>
+      </nav>
+      <div class="panel active" data-panel="picsum">
+        <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度（像素）</label><input id="lp-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（像素）</label><input id="lp-height" type="number" value="400" min="1" max="5000"></div></div><p class="hint">宽度和高度范围：1 - 5000 像素</p></div>
+        <div class="field"><label>图片 ID</label><div class="segmented-input"><span>Image ID</span><input id="lp-id" type="number" min="0" max="1084" placeholder="可留空随机"></div><p class="hint">允许输入 0 - 1084，填写后优先使用指定图片。</p></div>
+        <div class="field"><label>随机种子</label><div class="segmented-input"><span>Seed</span><input id="lp-seed" type="number" min="0" placeholder="可留空随机"></div></div>
+        <hr>
+        <div class="field"><label>图片格式</label><div class="segmented" data-format="lp-format"><button class="active" data-value="">JPG</button><button data-value=".jpg">JPG</button><button data-value=".webp">WebP</button></div></div>
+        <div class="field"><label class="switch-row">黑白效果<input id="lp-grayscale" type="checkbox"></label></div>
+        <div class="field"><div class="range-head"><label>模糊程度</label><span id="lp-blur-val">关闭</span></div><input id="lp-blur" type="range" min="0" max="10" value="0"></div>
+        <div class="field"><label class="switch-row">防止缓存<input id="lp-nocache" type="checkbox" checked></label></div>
+      </div>
+      <div class="panel" data-panel="placehold">
+        <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度（像素）</label><input id="ph-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（像素）</label><input id="ph-height" type="number" value="400" min="1" max="5000"></div></div></div>
+        <div class="field"><label>背景颜色</label><input id="ph-bg" type="color" value="#cccccc"></div>
+        <div class="field"><label>文字颜色</label><input id="ph-text-color" type="color" value="#999999"></div>
+        <div class="field"><label>自定义文字</label><input id="ph-text" type="text" placeholder="默认显示图片尺寸"></div>
+        <div class="field"><label>图片格式</label><div class="segmented" data-format="ph-format"><button class="active" data-value="">SVG</button><button data-value="png">PNG</button><button data-value="jpg">JPG</button><button data-value="webp">WebP</button></div></div>
+      </div>
+      <div class="panel" data-panel="dummy">
+        <div class="field"><label>图片尺寸</label><div class="dimensions"><div class="dimension-field"><label>宽度（像素）</label><input id="di-width" type="number" value="600" min="1" max="5000"></div><span class="times">×</span><div class="dimension-field"><label>高度（像素）</label><input id="di-height" type="number" value="400" min="1" max="5000"></div></div></div>
+        <div class="field"><label>背景颜色</label><input id="di-bg" type="color" value="#cccccc"></div>
+        <div class="field"><label>文字颜色</label><input id="di-text-color" type="color" value="#000000"></div>
+        <div class="field"><label>自定义文字</label><input id="di-text" type="text" placeholder="默认显示图片尺寸"></div>
+        <div class="field"><label>图片格式</label><div class="segmented" data-format="di-format"><button class="active" data-value="">GIF</button><button data-value=".png">PNG</button><button data-value=".jpg">JPG</button><button data-value=".webp">WebP</button></div></div>
+      </div>
+    </section>
+    <section class="preview">
+      <div class="preview-stage"><div class="preview-frame"><img id="preview-image" alt="图片预览"></div></div>
+      <div class="result">
+        <div class="result-head"><span>图片地址</span><a id="open-new-tab" target="_blank" rel="noopener">新窗口打开</a></div>
+        <div class="result-line"><input id="output-url" readonly><button class="small-btn" id="copy-url">复制地址</button></div>
+        <div class="result-head" style="margin-top:16px"><span>代码片段</span><div class="segmented" style="width:128px" data-snippet><button class="active" data-value="html">HTML</button><button data-value="markdown">Markdown</button></div></div>
+        <div class="result-line"><textarea id="output-snippet" readonly rows="2"></textarea><button class="small-btn" id="copy-snippet">复制代码</button></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const state = { tab: 'picsum', format: '', snippet: 'html', url: '' };
+    const $ = id => document.getElementById(id);
+    const value = id => $(id).value.trim();
+    const number = (id, fallback) => Math.min(5000, Math.max(1, Number(value(id)) || fallback));
+    const color = id => $(id).value.slice(1);
+    function currentDimensions(prefix) { return [number(prefix + '-width', 600), number(prefix + '-height', 400)]; }
+    function picsumUrl() {
+      const [w, h] = currentDimensions('lp'); const id = value('lp-id'); const seed = value('lp-seed');
+      let url = 'https://picsum.photos' + (id ? '/id/' + Math.min(1084, Math.max(0, Number(id))) : seed ? '/seed/' + encodeURIComponent(seed) : '') + '/' + w + '/' + h + state.format;
+      const params = []; if ($('lp-grayscale').checked) params.push('grayscale'); const blur = Number($('lp-blur').value); if (blur) params.push('blur=' + blur); if (!id && !seed && $('lp-nocache').checked) params.push('random=' + Date.now());
+      return url + (params.length ? '?' + params.join('&') : '');
+    }
+    function placeholdUrl() { const [w, h] = currentDimensions('ph'); let url = 'https://placehold.co/' + w + 'x' + h + '/' + color('ph-bg') + '/' + color('ph-text-color') + (state.format ? '/' + state.format : ''); const text = value('ph-text'); return text ? url + '?text=' + encodeURIComponent(text).replace(/%20/g, '+') : url; }
+    function dummyUrl() { const [w, h] = currentDimensions('di'); let url = 'https://dummyimage.com/' + w + 'x' + h + state.format + '/' + color('di-bg').toUpperCase() + '/' + color('di-text-color').toUpperCase(); const text = value('di-text'); return text ? url + '?text=' + encodeURIComponent(text).replace(/%20/g, '+') : url; }
+    function generate() { state.url = state.tab === 'picsum' ? picsumUrl() : state.tab === 'placehold' ? placeholdUrl() : dummyUrl(); $('output-url').value = state.url; $('open-new-tab').href = state.url; const [w, h] = currentDimensions(state.tab === 'picsum' ? 'lp' : state.tab === 'placehold' ? 'ph' : 'di'); const alt = '占位图 ' + w + 'x' + h; $('output-snippet').value = state.snippet === 'html' ? '<img src="' + state.url + '" alt="' + alt + '">' : '![' + alt + '](' + state.url + ')'; $('preview-image').src = state.url; }
+    document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.tab,.panel').forEach(el => el.classList.remove('active')); btn.classList.add('active'); document.querySelector('[data-panel="' + btn.dataset.tab + '"]').classList.add('active'); state.tab = btn.dataset.tab; state.format = document.querySelector('[data-panel="' + state.tab + '"] [data-format] .active')?.dataset.value || ''; generate(); }));
+    document.querySelectorAll('[data-format] button').forEach(btn => btn.addEventListener('click', () => { const group = btn.parentElement; group.querySelectorAll('button').forEach(item => item.classList.remove('active')); btn.classList.add('active'); state.format = btn.dataset.value; generate(); }));
+    document.querySelectorAll('[data-snippet] button').forEach(btn => btn.addEventListener('click', () => { btn.parentElement.querySelectorAll('button').forEach(item => item.classList.remove('active')); btn.classList.add('active'); state.snippet = btn.dataset.value; generate(); }));
+    document.querySelectorAll('input').forEach(input => input.addEventListener('input', () => { if (input.id === 'lp-blur-val') return; if (input.id === 'lp-blur') $('lp-blur-val').textContent = input.value === '0' ? '关闭' : input.value; generate(); }));
+    async function copy(id) { try { await navigator.clipboard.writeText($(id).value); } catch { $(id).select(); document.execCommand('copy'); } }
+    $('copy-url').addEventListener('click', () => copy('output-url')); $('copy-snippet').addEventListener('click', () => copy('output-snippet')); generate();
+  </script>
+</body>
+</html>

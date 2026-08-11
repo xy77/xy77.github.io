@@ -13,7 +13,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
     <script type="module" src="/src/main.js"></script>
 </head>
-<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
+<body tabindex="0" class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
+
+    <div id="task-view" class="task-view hidden" aria-hidden="true">
+        <div class="task-view-panel" role="dialog" aria-label="Task View">
+            <div class="task-view-header"><span>任务视图</span><span class="task-view-domain">xy77.github.io</span></div>
+            <div class="task-view-grid">
+                <a class="task-card" href="/img/" aria-label="打开占位图">
+                    <div class="task-card-preview"><span class="task-image-icon">▧</span></div>
+                    <strong>占位图</strong><small>xy77.github.io/img</small>
+                </a>
+            </div>
+        </div>
+    </div>
 
     <!-- ========== 左侧遮罩和 ========== -->
     <div id="sidebar-trigger" class="fixed left-0 top-0 w-6 h-screen z-[99]"></div>
