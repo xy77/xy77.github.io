@@ -12,7 +12,8 @@
 }
 .task-view.hidden { display: none; }
 .task-view-panel {
-    width: min(680px, 90vw);
+    width: min(50vw, 680px);
+    max-width: 50vw;
     padding: 1.25rem;
     border: 1px solid rgba(255,255,255,.65);
     border-radius: 14px;
@@ -27,6 +28,7 @@
 .task-card-preview { height: 102px; display: grid; place-items: center; border-radius: 6px; background: linear-gradient(135deg, #dbeafe 0 50%, #bfdbfe 50% 100%); color: #2563eb; font-size: 38px; }
 .task-card strong { font-size: 14px; }
 .task-card small { color: #64748b; font-size: 11px; }
+@media (max-width: 760px) { .task-view-panel { width: 90vw; max-width: 90vw; } }
 
 .folder-btn-active {
     border-color: #1890ff !important;
