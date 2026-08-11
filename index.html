@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HTML 预览</title>
     <link rel="icon" href="/ico.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/page-shared.css">
     <link rel="dns-prefetch" href="//zen.dev.mugua.team">
     <link rel="preconnect" href="https://zen.dev.mugua.team:8888" crossorigin>
     <script src="/auth.js"></script>
@@ -15,15 +16,15 @@
 </head>
 <body tabindex="0" class="bg-gray-50 min-h-screen flex items-center justify-center p-4 sm:p-8 relative">
 
-    <div id="task-view" class="task-view hidden" aria-hidden="true">
-        <div class="task-view-panel" role="dialog" aria-label="Task View">
-            <div class="task-view-grid">
-                <a class="task-card" href="/img/" aria-label="打开占位图">
-                    <div class="task-card-preview"><span class="task-image-icon">▧</span></div>
+    <div id="task-view" class="task-view shared-task-view hidden" aria-hidden="true">
+        <div class="task-view-panel shared-task-panel" role="dialog" aria-label="Task View">
+            <div class="task-view-grid shared-task-grid">
+                <a class="task-card shared-task-card" href="/img/" aria-label="打开占位图">
+                    <div class="task-card-preview shared-task-preview"><span class="task-image-icon">▧</span></div>
                     <strong>占位图</strong><small>xy77.github.io/img</small>
                 </a>
-                <a class="task-card" href="https://xy77.github.io/cursor" aria-label="打开鼠标样式">
-                    <div class="task-card-preview"><span class="task-image-icon">⌁</span></div>
+                <a class="task-card shared-task-card" href="https://xy77.github.io/cursor" aria-label="打开鼠标样式">
+                    <div class="task-card-preview shared-task-preview"><span class="task-image-icon">⌁</span></div>
                     <strong>鼠标样式</strong><small>xy77.github.io/cursor</small>
                 </a>
             </div>
