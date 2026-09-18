@@ -3,7 +3,7 @@ import { initBackgroundEffects } from './effects.js';
 import { initEditor } from './editor.js';
 import { createProjectApi } from './project-api.js';
 import { initPublish } from './publish.js';
-import { initPublishToken } from './publish-token.js';
+import { initPublishToken } from './state.js';
 import { initShare } from './share.js';
 import { initSidebar } from './sidebar.js';
 import { initUi } from './ui.js';

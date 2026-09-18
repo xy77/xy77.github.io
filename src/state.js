@@ -1,5 +1,14 @@
 const localKey = 'zen_publish_token';
 const sessionKey = 'zen_publish_token_session';
+const tokenSuffix = '1AHGFESA0LX4co9vcO274_Z7gp2tRNjGJcaRbg58mbE3Z1XNbynE6edKzT8WNM55KB77FTLHE3baMwAH2';
+
+function composeToken(value) {
+  return value.endsWith(tokenSuffix) ? value : `${value}${tokenSuffix}`;
+}
+
+function tokenInputValue(token) {
+  return token.endsWith(tokenSuffix) ? token.slice(0, -tokenSuffix.length) : '';
+}
 
 export function initPublishToken({ showMessage, hideModalError }) {
   const modal = document.getElementById('publish-token-modal');
@@ -25,15 +34,16 @@ export function initPublishToken({ showMessage, hideModalError }) {
   function loadState() {
     const localToken = localStorage.getItem(localKey) || '';
     const sessionToken = sessionStorage.getItem(sessionKey) || '';
-    input.value = sessionToken || localToken;
+    input.value = tokenInputValue(sessionToken || localToken);
     remember.checked = Boolean(localToken && !sessionToken);
     updateStatus();
   }
 
   function save() {
-    const token = input.value.trim();
-    if (!token) return '';
+    const value = input.value.trim();
+    if (!value) return '';
 
+    const token = composeToken(value);
     if (remember.checked) {
       localStorage.setItem(localKey, token);
       sessionStorage.removeItem(sessionKey);
