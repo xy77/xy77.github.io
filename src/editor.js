@@ -684,7 +684,6 @@ export async function initEditor({ showMessage, onShare }) {
           language: 'html',
           theme: 'vs',
           automaticLayout: true,
-          columnSelection: false,
           minimap: { enabled: true },
           wordWrap: 'off',
           fontSize: 16,
@@ -728,25 +727,62 @@ export async function initEditor({ showMessage, onShare }) {
   }
 
   const editorDomNode = editor.getDomNode();
-  let temporaryColumnSelection = false;
+  let columnDrag = null;
 
-  function stopTemporaryColumnSelection() {
-    if (!temporaryColumnSelection) return;
-    temporaryColumnSelection = false;
-    editor.updateOptions({ columnSelection: false });
+  function getPosition(event) {
+    return editor.getTargetAtClientPoint(event.clientX, event.clientY)?.position || null;
   }
 
-  editorDomNode.addEventListener(
-    'pointerdown',
-    (event) => {
-      if (event.button !== 0 || !event.altKey) return;
-      temporaryColumnSelection = true;
-      editor.updateOptions({ columnSelection: true });
-    },
-    true
-  );
-  window.addEventListener('pointerup', stopTemporaryColumnSelection, true);
-  window.addEventListener('blur', stopTemporaryColumnSelection);
+  function updateColumnSelection(position) {
+    if (!columnDrag || !position) return;
+
+    const start = columnDrag.start;
+    const firstLine = Math.min(start.lineNumber, position.lineNumber);
+    const lastLine = Math.max(start.lineNumber, position.lineNumber);
+    const leftColumn = Math.min(start.column, position.column);
+    const rightColumn = Math.max(start.column, position.column);
+    const selections = [];
+
+    for (let lineNumber = firstLine; lineNumber <= lastLine; lineNumber += 1) {
+      const maxColumn = editor.getModel().getLineMaxColumn(lineNumber);
+      const fromColumn = Math.min(leftColumn, maxColumn);
+      const toColumn = Math.min(rightColumn, maxColumn);
+      selections.push(new window.monaco.Selection(lineNumber, fromColumn, lineNumber, toColumn));
+    }
+
+    editor.setSelections(selections);
+  }
+
+  function stopColumnDrag() {
+    if (!columnDrag) return;
+    try {
+      editorDomNode.releasePointerCapture(columnDrag.pointerId);
+    } catch {
+      // Pointer capture may already have been released by the browser.
+    }
+    columnDrag = null;
+  }
+
+  editorDomNode.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || !event.altKey) return;
+    const position = getPosition(event);
+    if (!position) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    columnDrag = { pointerId: event.pointerId, start: position };
+    editorDomNode.setPointerCapture(event.pointerId);
+    editor.focus();
+    updateColumnSelection(position);
+  }, true);
+  editorDomNode.addEventListener('pointermove', (event) => {
+    if (!columnDrag || event.pointerId !== columnDrag.pointerId) return;
+    event.preventDefault();
+    updateColumnSelection(getPosition(event));
+  }, true);
+  editorDomNode.addEventListener('pointerup', stopColumnDrag, true);
+  editorDomNode.addEventListener('pointercancel', stopColumnDrag, true);
+  window.addEventListener('blur', stopColumnDrag);
   editorDomNode.addEventListener(
     'compositionstart',
     () => {
