@@ -684,7 +684,7 @@ export async function initEditor({ showMessage, onShare }) {
           language: 'html',
           theme: 'vs',
           automaticLayout: true,
-          columnSelection: true,
+          columnSelection: false,
           minimap: { enabled: true },
           wordWrap: 'off',
           fontSize: 16,
@@ -728,6 +728,25 @@ export async function initEditor({ showMessage, onShare }) {
   }
 
   const editorDomNode = editor.getDomNode();
+  let temporaryColumnSelection = false;
+
+  function stopTemporaryColumnSelection() {
+    if (!temporaryColumnSelection) return;
+    temporaryColumnSelection = false;
+    editor.updateOptions({ columnSelection: false });
+  }
+
+  editorDomNode.addEventListener(
+    'pointerdown',
+    (event) => {
+      if (event.button !== 0 || !event.altKey) return;
+      temporaryColumnSelection = true;
+      editor.updateOptions({ columnSelection: true });
+    },
+    true
+  );
+  window.addEventListener('pointerup', stopTemporaryColumnSelection, true);
+  window.addEventListener('blur', stopTemporaryColumnSelection);
   editorDomNode.addEventListener(
     'compositionstart',
     () => {
