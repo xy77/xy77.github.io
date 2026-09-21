@@ -684,6 +684,7 @@ export async function initEditor({ showMessage, onShare }) {
           language: 'html',
           theme: 'vs',
           automaticLayout: true,
+          columnSelection: true,
           minimap: { enabled: true },
           wordWrap: 'off',
           fontSize: 16,
