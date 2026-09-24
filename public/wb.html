@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>WebView 媒体选择能力测试</title>
+  <title>WebView 原生能力测试</title>
   <!-- 引入微信 JS-SDK -->
   <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
   <style>
@@ -25,10 +25,10 @@
     }
     .header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .header h1 {
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 600;
       color: #1989fa;
       margin-bottom: 4px;
@@ -82,7 +82,7 @@
       align-items: center;
       justify-content: center;
       width: 100%;
-      min-height: 50px;
+      min-height: 44px;
       padding: 6px 12px;
       border: none;
       border-radius: 8px;
@@ -90,6 +90,7 @@
       font-weight: 500;
       color: #ffffff;
       text-align: center;
+      cursor: pointer;
       transition: opacity 0.2s;
     }
     .btn small {
@@ -107,12 +108,13 @@
     .btn-camcorder { background: #ff976a; }
     .btn-video { background: #9065ea; }
     .btn-file { background: #39a9ed; }
+    .btn-default { background: #4f5565; }
     .btn-reload { background: #ee0a24; }
 
     .preview-box {
       width: 100%;
-      min-height: 180px;
-      max-height: 320px;
+      min-height: 160px;
+      max-height: 280px;
       background-color: #f2f3f5;
       border-radius: 8px;
       border: 1px dashed #dcdee0;
@@ -138,95 +140,162 @@
     .info-list {
       font-size: 12px;
       color: #646566;
-      margin-top: 12px;
+      margin-top: 10px;
       line-height: 1.8;
       background: #f7f8fa;
       border-radius: 6px;
-      padding: 10px 12px;
+      padding: 8px 12px;
     }
     .info-item {
       display: flex;
       justify-content: space-between;
       word-break: break-all;
     }
-    .notice {
-      font-size: 12px;
-      color: #ed6a0c;
-      background: #fffbe8;
+
+    /* 样式：details 折叠组件 */
+    details {
+      border: 1px solid #ebedf0;
       border-radius: 8px;
       padding: 10px 12px;
+      background: #fdfdfd;
+      font-size: 13px;
+    }
+    details summary {
+      font-weight: 600;
+      cursor: pointer;
+      color: #323233;
+      outline: none;
+    }
+    details[open] summary {
+      margin-bottom: 8px;
+      color: #1989fa;
+    }
+    .details-content {
+      color: #646566;
+      font-size: 12px;
       line-height: 1.6;
+    }
+
+    /* 样式：dialog 原生弹窗 */
+    dialog {
+      margin: auto;
+      border: none;
+      border-radius: 12px;
+      padding: 20px 16px;
+      width: 80%;
+      max-width: 320px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+    }
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.5);
+    }
+    .dialog-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .dialog-body {
+      font-size: 13px;
+      color: #646566;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    /* 样式：datalist 与原生表单输入 */
+    .form-input {
+      width: 100%;
+      height: 40px;
+      border: 1px solid #dcdee0;
+      border-radius: 6px;
+      padding: 0 10px;
+      font-size: 13px;
+      outline: none;
+      margin-top: 6px;
+    }
+    .form-input:focus {
+      border-color: #1989fa;
+    }
+
+    /* 样式：fieldset 批量禁用 */
+    fieldset {
+      border: 1px solid #ebedf0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    fieldset legend {
+      font-size: 12px;
+      color: #969799;
+      padding: 0 6px;
+    }
+    fieldset:disabled {
+      opacity: 0.5;
+      background-color: #f7f8fa;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
 
   <div class="header">
-    <h1>Webview 媒体与文件选择测试</h1>
-    <p>微信环境常用 5 种 input 组件调起能力验证</p>
+    <h1>Webview HTML5 现代组件演示</h1>
+    <p>包含媒体选择器与原生交互标签测试</p>
   </div>
 
+  <!-- 1. 原生媒体与文件选择器区 -->
   <div class="card">
-    <div class="card-title">五种组件测试列表</div>
+    <div class="card-title">媒体调起能力测试</div>
 
-    <!-- 1. 直接调起相机拍照 -->
     <div class="action-btn-wrapper">
       <input type="file" accept="image/*" capture="environment" class="hidden-input file-entry" />
       <button class="btn btn-camera" type="button">
-        <span>1. 📸 直接调起相机拍照</span>
-        <small>accept="image/*" capture="environment"</small>
+        <span>📸 直接调起后置相机拍照</span>
+        <small>capture="environment"</small>
       </button>
     </div>
 
-    <!-- 2. 图片选择（弹窗：相机或相册） -->
     <div class="action-btn-wrapper">
       <input type="file" accept="image/*" class="hidden-input file-entry" />
       <button class="btn btn-photo" type="button">
-        <span>2. 🖼️ 图片选择（弹窗选相册/相机）</span>
+        <span>🖼️ 图片选择（系统弹窗选相册/相机）</span>
         <small>accept="image/*"</small>
       </button>
     </div>
 
-    <!-- 3. 直接调起录像机录像 -->
     <div class="action-btn-wrapper">
       <input type="file" accept="video/*" capture="camcorder" class="hidden-input file-entry" />
       <button class="btn btn-camcorder" type="button">
-        <span>3. 📹 直接调起摄像机录像</span>
-        <small>accept="video/*" capture="camcorder"</small>
+        <span>📹 直接调起摄像机录像</span>
+        <small>capture="camcorder"</small>
       </button>
     </div>
 
-    <!-- 4. 视频选择（弹窗：拍摄或相册视频） -->
     <div class="action-btn-wrapper">
       <input type="file" accept="video/*" class="hidden-input file-entry" />
       <button class="btn btn-video" type="button">
-        <span>4. 🎬 视频选择（弹窗选视频库/拍摄）</span>
+        <span>🎬 视频选择（系统弹窗选视频库/拍摄）</span>
         <small>accept="video/*"</small>
       </button>
     </div>
 
-    <!-- 5. 通用文档 / 文件管理器选择 -->
     <div class="action-btn-wrapper">
       <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,text/plain,image/*" class="hidden-input file-entry" />
       <button class="btn btn-file" type="button">
-        <span>5. 📁 通用文件 / 文档选择</span>
-        <small>accept=".pdf,.doc,image/*"（调起系统文件）</small>
+        <span>📁 通用文件 / 系统文档选择</span>
+        <small>accept=".pdf,.doc,image/*"</small>
       </button>
     </div>
 
-    <hr style="border: none; border-top: 1px dashed #ebedf0; margin: 16px 0;" />
-
-    <!-- 强制清缓存刷新按钮 -->
-    <div class="action-btn-wrapper" style="margin-bottom: 0;">
-      <button id="reloadBtn" class="btn btn-reload" type="button">
-        <span>🔄 清除缓存并强制刷新</span>
-        <small>清除 Storage 并追加时间戳重载</small>
-      </button>
-    </div>
-
-    <!-- 预览与文件元数据展示 -->
     <div class="preview-box">
-      <div id="placeholder" class="preview-placeholder">暂未选择任何文件，点击上方任意按钮测试</div>
+      <div id="placeholder" class="preview-placeholder">暂未选择任何文件，点击上方按钮触发</div>
       <img id="previewImg" alt="图片预览" />
       <video id="previewVideo" controls playsinline></video>
     </div>
@@ -235,17 +304,84 @@
       <div class="info-item"><span>文件名：</span><span id="fileName">-</span></div>
       <div class="info-item"><span>文件大小：</span><span id="fileSize">-</span></div>
       <div class="info-item"><span>文件类型：</span><span id="fileType">-</span></div>
-      <div class="info-item"><span>加载时刻：</span><span id="updateTime">-</span></div>
+      <div class="info-item"><span>读取时刻：</span><span id="updateTime">-</span></div>
     </div>
   </div>
 
-  <div class="notice">
-    💡 <strong>说明：</strong>
-    <br/>• <strong>Android XWeb：</strong> 带有 <code>capture</code> 属性通常能强制直跳相机或录像机；不带时弹窗供选择。
-    <br/>• <strong>iOS Safari/WebKit：</strong> 受系统权限限制，部分 iOS 版本即使加了 <code>capture</code> 仍会以底部弹窗形式呈现，属于 iOS 底层安全策略。
+  <!-- 2. 原生结构与交互组件区 -->
+  <div class="card">
+    <div class="card-title">HTML5 原生交互组件</div>
+
+    <!-- 组件 1: <details> 与 <summary> -->
+    <div style="margin-bottom: 12px;">
+      <details>
+        <summary>点击展开/收起：&lt;details&gt; 原生手风琴</summary>
+        <div class="details-content">
+          无需编写任何 JavaScript，纯浏览器内核原生支持的折叠面板，动画由内置渲染层处理，移动端性能极佳。
+        </div>
+      </details>
+    </div>
+
+    <!-- 组件 2: <dialog> 原生弹窗 -->
+    <div class="action-btn-wrapper">
+      <button id="openDialogBtn" class="btn btn-default" type="button">
+        <span>💬 打开原生弹窗 (&lt;dialog&gt;)</span>
+        <small>使用 dialog.showModal() 打开原生模态</small>
+      </button>
+    </div>
+
+    <dialog id="nativeDialog">
+      <div class="dialog-title">原生 Dialog 提示</div>
+      <div class="dialog-body">这是使用 HTML5 <code>&lt;dialog&gt;</code> 标签构建的原生模态框，带自动全屏遮罩层。</div>
+      <button id="closeDialogBtn" class="btn btn-photo" type="button">关闭弹窗</button>
+    </dialog>
+
+    <!-- 组件 3: <datalist> 联想建议输入 -->
+    <div style="margin-bottom: 14px;">
+      <label style="font-size: 13px; font-weight: 500;">&lt;datalist&gt; 自动联想推荐输入框：</label>
+      <input type="text" list="browsers" class="form-input" placeholder="输入 'C' 或双击查看建议列表..." />
+      <datalist id="browsers">
+        <option value="Chrome"></option>
+        <option value="Safari"></option>
+        <option value="WeChat XWeb"></option>
+        <option value="Firefox"></option>
+        <option value="Edge"></option>
+      </datalist>
+    </div>
+
+    <!-- 组件 4: <fieldset> & disabled 批量禁用 -->
+    <div style="margin-bottom: 8px;">
+      <div class="control-row">
+        <input type="checkbox" id="toggleDisable" style="width: 18px; height: 18px;" />
+        <label for="toggleDisable" style="font-weight: 600; color: #ee0a24;">勾选此项：一键禁用下方整个表单块</label>
+      </div>
+
+      <fieldset id="formFieldset">
+        <legend>&lt;fieldset&gt; 包含的子表单</legend>
+        <div style="margin-bottom: 8px;">
+          <input type="text" class="form-input" placeholder="输入姓名..." value="测试用户" />
+        </div>
+        <div class="action-btn-wrapper" style="margin-bottom: 0;">
+          <button class="btn btn-camera" type="button">
+            <span>内部提交按钮</span>
+          </button>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+  <!-- 3. 清缓存刷新控制 -->
+  <div class="card">
+    <div class="action-btn-wrapper" style="margin-bottom: 0;">
+      <button id="reloadBtn" class="btn btn-reload" type="button">
+        <span>🔄 清除缓存并强制刷新</span>
+        <small>清理本地数据并追加时间戳强刷</small>
+      </button>
+    </div>
   </div>
 
   <script>
+    // 媒体选择相关
     const fileEntries = document.querySelectorAll('.file-entry');
     const previewImg = document.getElementById('previewImg');
     const previewVideo = document.getElementById('previewVideo');
@@ -255,9 +391,7 @@
     const fileSize = document.getElementById('fileSize');
     const fileType = document.getElementById('fileType');
     const updateTime = document.getElementById('updateTime');
-    const reloadBtn = document.getElementById('reloadBtn');
 
-    // 统一监听所有 file 控件变更
     fileEntries.forEach(input => {
       input.addEventListener('change', function(e) {
         const files = e.target.files;
@@ -270,7 +404,6 @@
         updateTime.textContent = new Date().toLocaleTimeString();
         metaInfo.style.display = 'block';
 
-        // 重置预览区域
         previewImg.style.display = 'none';
         previewVideo.style.display = 'none';
         previewVideo.pause();
@@ -287,24 +420,52 @@
           placeholder.style.display = 'none';
         } else {
           placeholder.style.display = 'block';
-          placeholder.textContent = '📄 该文件不支持直接内嵌预览，已成功获取文件对象！';
-        }
-
-        // 向小程序 postMessage 回传文件信息
-        if (window.wx && wx.miniProgram) {
-          wx.miniProgram.postMessage({
-            data: {
-              action: 'fileSelected',
-              name: file.name,
-              size: file.size,
-              type: file.type
-            }
-          });
+          placeholder.textContent = '📄 该文件类型不支持直视预览，已成功获取 File 句柄。';
         }
       });
     });
 
-    // 强刷新与去缓存逻辑
+    // <dialog> 弹窗交互
+    const nativeDialog = document.getElementById('nativeDialog');
+    const openDialogBtn = document.getElementById('openDialogBtn');
+    const closeDialogBtn = document.getElementById('closeDialogBtn');
+
+    openDialogBtn.addEventListener('click', () => {
+      if (typeof nativeDialog.showModal === 'function') {
+        nativeDialog.showModal();
+      } else {
+        alert('当前内核不支持 HTML5 <dialog> 组件');
+      }
+    });
+
+    closeDialogBtn.addEventListener('click', () => {
+      nativeDialog.close();
+    });
+
+    // 点击模态背景层自动关闭 dialog
+    nativeDialog.addEventListener('click', (e) => {
+      const rect = nativeDialog.getBoundingClientRect();
+      const isInDialog = (
+        rect.top <= e.clientY &&
+        e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX &&
+        e.clientX <= rect.left + rect.width
+      );
+      if (!isInDialog) {
+        nativeDialog.close();
+      }
+    });
+
+    // <fieldset disabled> 批量禁用控制
+    const toggleDisable = document.getElementById('toggleDisable');
+    const formFieldset = document.getElementById('formFieldset');
+
+    toggleDisable.addEventListener('change', (e) => {
+      formFieldset.disabled = e.target.checked;
+    });
+
+    // 强刷与清缓存
+    const reloadBtn = document.getElementById('reloadBtn');
     reloadBtn.addEventListener('click', function() {
       try {
         localStorage.clear();
