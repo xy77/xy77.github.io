@@ -7,8 +7,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>WebView 测试</title>
-  <!-- 引入微信 JS-SDK，便于与小程序通讯 -->
+  <title>WebView 媒体选择能力测试</title>
+  <!-- 引入微信 JS-SDK -->
   <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
   <style>
     * {
@@ -20,32 +20,32 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       background-color: #f7f8fa;
       color: #323233;
-      padding: 20px 16px 40px;
+      padding: 16px 16px 40px;
       line-height: 1.5;
     }
     .header {
       text-align: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .header h1 {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 600;
       color: #1989fa;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .header p {
-      font-size: 13px;
+      font-size: 12px;
       color: #969799;
     }
     .card {
       background: #ffffff;
       border-radius: 12px;
-      padding: 20px 16px;
+      padding: 16px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
       margin-bottom: 16px;
     }
     .card-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       margin-bottom: 12px;
       display: flex;
@@ -60,7 +60,12 @@
       border-radius: 2px;
       display: inline-block;
     }
-    /* 隐藏原生文件上传框，使用自定义按钮触发 */
+    .action-btn-wrapper {
+      position: relative;
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+    }
     .hidden-input {
       position: absolute;
       top: 0;
@@ -69,44 +74,41 @@
       height: 100%;
       opacity: 0;
       cursor: pointer;
-    }
-    .action-btn-wrapper {
-      position: relative;
-      display: inline-block;
-      width: 100%;
-      margin-bottom: 12px;
+      z-index: 2;
     }
     .btn {
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
       width: 100%;
-      height: 48px;
-      background: #07c160;
-      color: #ffffff;
+      min-height: 50px;
+      padding: 6px 12px;
       border: none;
       border-radius: 8px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 500;
-      box-shadow: 0 3px 8px rgba(7, 193, 96, 0.25);
+      color: #ffffff;
+      text-align: center;
       transition: opacity 0.2s;
+    }
+    .btn small {
+      font-size: 11px;
+      font-weight: normal;
+      opacity: 0.85;
+      font-family: monospace;
+      margin-top: 2px;
     }
     .btn:active {
       opacity: 0.85;
     }
-    .btn-secondary {
-      background: #1989fa;
-      box-shadow: 0 3px 8px rgba(25, 137, 250, 0.25);
-    }
-    .btn-warn {
-      background: #ff976a;
-      box-shadow: 0 3px 8px rgba(255, 151, 106, 0.25);
-    }
-    .btn-danger {
-      background: #ee0a24;
-      box-shadow: 0 3px 8px rgba(238, 10, 36, 0.25);
-    }
+    .btn-camera { background: #07c160; }
+    .btn-photo { background: #1989fa; }
+    .btn-camcorder { background: #ff976a; }
+    .btn-video { background: #9065ea; }
+    .btn-file { background: #39a9ed; }
+    .btn-reload { background: #ee0a24; }
+
     .preview-box {
       width: 100%;
       min-height: 180px;
@@ -121,16 +123,17 @@
       margin-top: 14px;
       position: relative;
     }
-    .preview-box img {
+    .preview-box img, .preview-box video {
       width: 100%;
       height: 100%;
       object-fit: contain;
       display: none;
     }
     .preview-placeholder {
-      font-size: 13px;
+      font-size: 12px;
       color: #969799;
       text-align: center;
+      padding: 0 16px;
     }
     .info-list {
       font-size: 12px;
@@ -159,182 +162,159 @@
 <body>
 
   <div class="header">
-    <h1>Webview 相机与文件选择</h1>
-    <p>微信小程序 web-view 容器环境兼容性检测</p>
+    <h1>Webview 媒体与文件选择测试</h1>
+    <p>微信环境常用 5 种 input 组件调起能力验证</p>
   </div>
 
   <div class="card">
-    <div class="card-title">拍照上传测试区</div>
+    <div class="card-title">五种组件测试列表</div>
 
-    <!-- 1. 强制调起后置摄像头 -->
+    <!-- 1. 直接调起相机拍照 -->
     <div class="action-btn-wrapper">
-      <input 
-        id="cameraInput" 
-        type="file" 
-        capture="environment" 
-        accept="image/*" 
-        class="hidden-input" 
-      />
-      <button class="btn" type="button">
-        📷 调起后置摄像头 (capture="environment")
+      <input type="file" accept="image/*" capture="environment" class="hidden-input file-entry" />
+      <button class="btn btn-camera" type="button">
+        <span>1. 📸 直接调起相机拍照</span>
+        <small>accept="image/*" capture="environment"</small>
       </button>
     </div>
 
-    <!-- 2. 普通图片选择（相机/相册由系统弹窗提供） -->
+    <!-- 2. 图片选择（弹窗：相机或相册） -->
     <div class="action-btn-wrapper">
-      <input 
-        id="fileInput" 
-        type="file" 
-        accept="image/*" 
-        class="hidden-input" 
-      />
-      <button class="btn btn-secondary" type="button">
-        🖼️ 选择图片 (系统弹窗选择相册/拍照)
+      <input type="file" accept="image/*" class="hidden-input file-entry" />
+      <button class="btn btn-photo" type="button">
+        <span>2. 🖼️ 图片选择（弹窗选相册/相机）</span>
+        <small>accept="image/*"</small>
       </button>
     </div>
 
-    <!-- 3. 前置摄像头测试 -->
+    <!-- 3. 直接调起录像机录像 -->
     <div class="action-btn-wrapper">
-      <input 
-        id="userCameraInput" 
-        type="file" 
-        capture="user" 
-        accept="image/*" 
-        class="hidden-input" 
-      />
-      <button class="btn btn-warn" type="button">
-        🤳 调起前置摄像头 (capture="user")
+      <input type="file" accept="video/*" capture="camcorder" class="hidden-input file-entry" />
+      <button class="btn btn-camcorder" type="button">
+        <span>3. 📹 直接调起摄像机录像</span>
+        <small>accept="video/*" capture="camcorder"</small>
       </button>
     </div>
 
-<label>选择你喜欢的框架：</label>
-<input list="frameworks" />
+    <!-- 4. 视频选择（弹窗：拍摄或相册视频） -->
+    <div class="action-btn-wrapper">
+      <input type="file" accept="video/*" class="hidden-input file-entry" />
+      <button class="btn btn-video" type="button">
+        <span>4. 🎬 视频选择（弹窗选视频库/拍摄）</span>
+        <small>accept="video/*"</small>
+      </button>
+    </div>
 
-<datalist id="frameworks">
-  <option value="React">
-  <option value="Vue">
-  <option value="Svelte">
-  <option value="Angular">
-  <option value="Solid">
-</datalist>
+    <!-- 5. 通用文档 / 文件管理器选择 -->
+    <div class="action-btn-wrapper">
+      <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,text/plain,image/*" class="hidden-input file-entry" />
+      <button class="btn btn-file" type="button">
+        <span>5. 📁 通用文件 / 文档选择</span>
+        <small>accept=".pdf,.doc,image/*"（调起系统文件）</small>
+      </button>
+    </div>
 
+    <hr style="border: none; border-top: 1px dashed #ebedf0; margin: 16px 0;" />
 
-<dialog id="myModal">
-  <form method="dialog">
-    <p>这是一个原生模态框</p>
-    <button>关闭（自动）</button>
-  </form>
-</dialog>
-
-<button onclick="myModal.showModal()">打开弹窗⏏</button>
-
-
-
-<details>
-  <summary>点击展开</summary>
-  <div class="content">
-    这里是展开后的内容，原生支持 Ctrl+F 页内搜索！
-  </div>
-</details>
-
-
-
-
-
-    <!-- 4. 清缓存强制重载按钮 -->
+    <!-- 强制清缓存刷新按钮 -->
     <div class="action-btn-wrapper" style="margin-bottom: 0;">
-      <button id="reloadBtn" class="btn btn-danger" type="button">
-        🔄 清除缓存并强制刷新页面
+      <button id="reloadBtn" class="btn btn-reload" type="button">
+        <span>🔄 清除缓存并强制刷新</span>
+        <small>清除 Storage 并追加时间戳重载</small>
       </button>
     </div>
 
-    <!-- 图片预览与基础信息 -->
+    <!-- 预览与文件元数据展示 -->
     <div class="preview-box">
-      <div id="placeholder" class="preview-placeholder">暂未选择照片，点击上方按钮测试</div>
-      <img id="previewImg" alt="预览图" />
+      <div id="placeholder" class="preview-placeholder">暂未选择任何文件，点击上方任意按钮测试</div>
+      <img id="previewImg" alt="图片预览" />
+      <video id="previewVideo" controls playsinline></video>
     </div>
 
     <div id="metaInfo" class="info-list" style="display: none;">
       <div class="info-item"><span>文件名：</span><span id="fileName">-</span></div>
       <div class="info-item"><span>文件大小：</span><span id="fileSize">-</span></div>
-      <div class="info-item"><span>文件格式：</span><span id="fileType">-</span></div>
-      <div class="info-item"><span>更新时间戳：</span><span id="updateTime">-</span></div>
+      <div class="info-item"><span>文件类型：</span><span id="fileType">-</span></div>
+      <div class="info-item"><span>加载时刻：</span><span id="updateTime">-</span></div>
     </div>
   </div>
 
   <div class="notice">
-    💡 <strong>提示：</strong>
-    <br/>1. 点击“清除缓存并强制刷新”会往 URL 动态写入时间戳参数并进行 <code>location.replace</code>，确保彻底跳过微信内置内核的本地缓存。
-    <br/>2. 部署到 GitHub Pages 后因 CDN 节点同步通常需要几十秒，点此按钮可确保获取 GitHub 上的最新文件。
+    💡 <strong>说明：</strong>
+    <br/>• <strong>Android XWeb：</strong> 带有 <code>capture</code> 属性通常能强制直跳相机或录像机；不带时弹窗供选择。
+    <br/>• <strong>iOS Safari/WebKit：</strong> 受系统权限限制，部分 iOS 版本即使加了 <code>capture</code> 仍会以底部弹窗形式呈现，属于 iOS 底层安全策略。
   </div>
 
   <script>
-    const cameraInput = document.getElementById('cameraInput');
-    const fileInput = document.getElementById('fileInput');
-    const userCameraInput = document.getElementById('userCameraInput');
-    const reloadBtn = document.getElementById('reloadBtn');
-    
+    const fileEntries = document.querySelectorAll('.file-entry');
     const previewImg = document.getElementById('previewImg');
+    const previewVideo = document.getElementById('previewVideo');
     const placeholder = document.getElementById('placeholder');
     const metaInfo = document.getElementById('metaInfo');
     const fileName = document.getElementById('fileName');
     const fileSize = document.getElementById('fileSize');
     const fileType = document.getElementById('fileType');
     const updateTime = document.getElementById('updateTime');
+    const reloadBtn = document.getElementById('reloadBtn');
 
-    function handleFileSelection(event) {
-      const files = event.target.files;
-      if (!files || files.length === 0) return;
+    // 统一监听所有 file 控件变更
+    fileEntries.forEach(input => {
+      input.addEventListener('change', function(e) {
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
-      const file = files[0];
-      fileName.textContent = file.name;
-      fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
-      fileType.textContent = file.type || '未知';
-      updateTime.textContent = new Date().toLocaleTimeString();
-      metaInfo.style.display = 'block';
+        const file = files[0];
+        fileName.textContent = file.name;
+        fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+        fileType.textContent = file.type || '未知类型';
+        updateTime.textContent = new Date().toLocaleTimeString();
+        metaInfo.style.display = 'block';
 
-      // 本地 FileReader 进行图片渲染预览
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        previewImg.src = e.target.result;
-        previewImg.style.display = 'block';
-        placeholder.style.display = 'none';
+        // 重置预览区域
+        previewImg.style.display = 'none';
+        previewVideo.style.display = 'none';
+        previewVideo.pause();
 
-        // 尝试向小程序发送数据 (web-view postMessage 机制)
+        const fileUrl = URL.createObjectURL(file);
+
+        if (file.type.startsWith('image/')) {
+          previewImg.src = fileUrl;
+          previewImg.style.display = 'block';
+          placeholder.style.display = 'none';
+        } else if (file.type.startsWith('video/')) {
+          previewVideo.src = fileUrl;
+          previewVideo.style.display = 'block';
+          placeholder.style.display = 'none';
+        } else {
+          placeholder.style.display = 'block';
+          placeholder.textContent = '📄 该文件不支持直接内嵌预览，已成功获取文件对象！';
+        }
+
+        // 向小程序 postMessage 回传文件信息
         if (window.wx && wx.miniProgram) {
           wx.miniProgram.postMessage({
             data: {
-              action: 'fileCaptured',
-              fileName: file.name,
-              fileSize: file.size
+              action: 'fileSelected',
+              name: file.name,
+              size: file.size,
+              type: file.type
             }
           });
         }
-      };
-      reader.readAsDataURL(file);
-    }
+      });
+    });
 
-    // 绑定文件选择事件
-    cameraInput.addEventListener('change', handleFileSelection);
-    fileInput.addEventListener('change', handleFileSelection);
-    userCameraInput.addEventListener('change', handleFileSelection);
-
-    // 强制清除缓存刷新逻辑
+    // 强刷新与去缓存逻辑
     reloadBtn.addEventListener('click', function() {
-      // 1. 清除当前页面所有本地持久缓存
       try {
         localStorage.clear();
         sessionStorage.clear();
-      } catch (e) {
-        console.warn('清理 WebStorage 失败:', e);
+      } catch (err) {
+        console.warn('Storage 清理异常', err);
       }
-
-      // 2. 构造带时间戳的全新 URL，彻底击穿 WebView 本地与 CDN 缓存
-      const currentUrl = new URL(window.location.href);
-      currentUrl.searchParams.set('_t', Date.now().toString());
-
-      // 3. 使用 replace 替换当前页面，避免在小程序内部产生多余的后退历史
-      window.location.replace(currentUrl.toString());
+      const url = new URL(window.location.href);
+      url.searchParams.set('_t', Date.now().toString());
+      window.location.replace(url.toString());
     });
   </script>
 </body>
