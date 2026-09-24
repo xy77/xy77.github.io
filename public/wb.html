@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>WebView 拍照测试</title>
+  <!-- 引入微信 JS-SDK，便于与小程序通讯 -->
+  <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background-color: #f7f8fa;
+      color: #323233;
+      padding: 20px 16px 40px;
+      line-height: 1.5;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1989fa;
+      margin-bottom: 6px;
+    }
+    .header p {
+      font-size: 13px;
+      color: #969799;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title::before {
+      content: "";
+      width: 4px;
+      height: 14px;
+      background: #1989fa;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    /* 隐藏原生文件上传框，使用自定义按钮触发 */
+    .hidden-input {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .action-btn-wrapper {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 48px;
+      background: #07c160;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 500;
+      box-shadow: 0 3px 8px rgba(7, 193, 96, 0.25);
+      transition: opacity 0.2s;
+    }
+    .btn:active {
+      opacity: 0.85;
+    }
+    .btn-secondary {
+      background: #1989fa;
+      box-shadow: 0 3px 8px rgba(25, 137, 250, 0.25);
+    }
+    .preview-box {
+      width: 100%;
+      min-height: 200px;
+      max-height: 360px;
+      background-color: #f2f3f5;
+      border-radius: 8px;
+      border: 1px dashed #dcdee0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-top: 14px;
+      position: relative;
+    }
+    .preview-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: none;
+    }
+    .preview-placeholder {
+      font-size: 13px;
+      color: #969799;
+      text-align: center;
+    }
+    .info-list {
+      font-size: 12px;
+      color: #646566;
+      margin-top: 12px;
+      line-height: 1.8;
+      background: #f7f8fa;
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      word-break: break-all;
+    }
+    .notice {
+      font-size: 12px;
+      color: #ee0a24;
+      background: #fffbe8;
+      color: #ed6a0c;
+      border-radius: 8px;
+      padding: 10px 12px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Webview 相机与文件选择</h1>
+    <p>微信小程序 web-view 容器环境兼容性检测</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">拍照上传测试区</div>
+
+    <!-- 关键代码容器 -->
+    <div class="action-btn-wrapper">
+      <input 
+        id="cameraInput" 
+        type="file" 
+        capture="environment" 
+        accept="image/*" 
+        class="hidden-input" 
+      />
+      <button class="btn" type="button">
+        📷 调起后置摄像头拍照
+      </button>
+    </div>
+
+    <!-- 普通相册/文件选择对比 -->
+    <div class="action-btn-wrapper">
+      <input 
+        id="fileInput" 
+        type="file" 
+        accept="image/*" 
+        class="hidden-input" 
+      />
+      <button class="btn btn-secondary" type="button">
+        🖼️ 选择图片（支持相册）
+      </button>
+    </div>
+
+    <!-- 图片预览与基础信息 -->
+    <div class="preview-box">
+      <div id="placeholder" class="preview-placeholder">暂未选择照片，点击上方按钮拍照</div>
+      <img id="previewImg" alt="预览图" />
+    </div>
+
+    <div id="metaInfo" class="info-list" style="display: none;">
+      <div class="info-item"><span>文件名：</span><span id="fileName">-</span></div>
+      <div class="info-item"><span>文件大小：</span><span id="fileSize">-</span></div>
+      <div class="info-item"><span>文件格式：</span><span id="fileType">-</span></div>
+    </div>
+  </div>
+
+  <div class="notice">
+    💡 <strong>提示：</strong>
+    <br/>1. <code>capture="environment"</code> 在部分安卓手机微信里会直接拉起后置相机；在 iOS 微信中通常会弹出“拍照/从相册选取”菜单选项。
+    <br/>2. 请将此 HTML 部署到你预设的 <code>https://xy77.github.io/</code> 仓库并推送更新即可测试。
+  </div>
+
+  <script>
+    const cameraInput = document.getElementById('cameraInput');
+    const fileInput = document.getElementById('fileInput');
+    const previewImg = document.getElementById('previewImg');
+    const placeholder = document.getElementById('placeholder');
+    const metaInfo = document.getElementById('metaInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const fileType = document.getElementById('fileType');
+
+    function handleFileSelection(event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+
+      const file = files[0];
+      fileName.textContent = file.name;
+      fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
+      fileType.textContent = file.type || '未知';
+      metaInfo.style.display = 'block';
+
+      // 预览展示
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewImg.style.display = 'block';
+        placeholder.style.display = 'none';
+
+        // 尝试向小程序发送数据 (web-view 通信机制)
+        if (window.wx && wx.miniProgram) {
+          wx.miniProgram.postMessage({
+            data: {
+              action: 'fileCaptured',
+              fileName: file.name,
+              fileSize: file.size
+            }
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    cameraInput.addEventListener('change', handleFileSelection);
+    fileInput.addEventListener('change', handleFileSelection);
+  </script>
+</body>
+</html>
