@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- HTTP 缓存控制头 -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>WebView 拍照测试</title>
   <!-- 引入微信 JS-SDK，便于与小程序通讯 -->
   <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
@@ -83,7 +87,7 @@
       color: #ffffff;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 500;
       box-shadow: 0 3px 8px rgba(7, 193, 96, 0.25);
       transition: opacity 0.2s;
@@ -95,10 +99,18 @@
       background: #1989fa;
       box-shadow: 0 3px 8px rgba(25, 137, 250, 0.25);
     }
+    .btn-warn {
+      background: #ff976a;
+      box-shadow: 0 3px 8px rgba(255, 151, 106, 0.25);
+    }
+    .btn-danger {
+      background: #ee0a24;
+      box-shadow: 0 3px 8px rgba(238, 10, 36, 0.25);
+    }
     .preview-box {
       width: 100%;
-      min-height: 200px;
-      max-height: 360px;
+      min-height: 180px;
+      max-height: 320px;
       background-color: #f2f3f5;
       border-radius: 8px;
       border: 1px dashed #dcdee0;
@@ -136,9 +148,8 @@
     }
     .notice {
       font-size: 12px;
-      color: #ee0a24;
-      background: #fffbe8;
       color: #ed6a0c;
+      background: #fffbe8;
       border-radius: 8px;
       padding: 10px 12px;
       line-height: 1.6;
@@ -155,7 +166,7 @@
   <div class="card">
     <div class="card-title">拍照上传测试区</div>
 
-    <!-- 关键代码容器 -->
+    <!-- 1. 强制调起后置摄像头 -->
     <div class="action-btn-wrapper">
       <input 
         id="cameraInput" 
@@ -165,11 +176,11 @@
         class="hidden-input" 
       />
       <button class="btn" type="button">
-        📷 调起后置摄像头拍照
+        📷 调起后置摄像头 (capture="environment")
       </button>
     </div>
 
-    <!-- 普通相册/文件选择对比 -->
+    <!-- 2. 普通图片选择（相机/相册由系统弹窗提供） -->
     <div class="action-btn-wrapper">
       <input 
         id="fileInput" 
@@ -178,39 +189,34 @@
         class="hidden-input" 
       />
       <button class="btn btn-secondary" type="button">
-        🖼️ 选择图片（支持相册）
+        🖼️ 选择图片 (系统弹窗选择相册/拍照)
       </button>
     </div>
 
-
-    
-    <!-- 普通相册/文件选择对比 -->
+    <!-- 3. 前置摄像头测试 -->
     <div class="action-btn-wrapper">
-     <input type="file" accept="image/*" capture="environment">
-      <button class="btn btn-secondary" type="button">
-        强制调用摄像头拍照
+      <input 
+        id="userCameraInput" 
+        type="file" 
+        capture="user" 
+        accept="image/*" 
+        class="hidden-input" 
+      />
+      <button class="btn btn-warn" type="button">
+        🤳 调起前置摄像头 (capture="user")
       </button>
     </div>
 
-
-
-
- <div class="action-btn-wrapper">
-     <input type="file" accept="image/*">
-      <button class="btn btn-secondary" type="button">
-        只允许从相册选择（不允许拍照）
+    <!-- 4. 清缓存强制重载按钮 -->
+    <div class="action-btn-wrapper" style="margin-bottom: 0;">
+      <button id="reloadBtn" class="btn btn-danger" type="button">
+        🔄 清除缓存并强制刷新页面
       </button>
     </div>
-
-
-
-
-
-
 
     <!-- 图片预览与基础信息 -->
     <div class="preview-box">
-      <div id="placeholder" class="preview-placeholder">暂未选择照片，点击上方按钮拍照</div>
+      <div id="placeholder" class="preview-placeholder">暂未选择照片，点击上方按钮测试</div>
       <img id="previewImg" alt="预览图" />
     </div>
 
@@ -218,24 +224,29 @@
       <div class="info-item"><span>文件名：</span><span id="fileName">-</span></div>
       <div class="info-item"><span>文件大小：</span><span id="fileSize">-</span></div>
       <div class="info-item"><span>文件格式：</span><span id="fileType">-</span></div>
+      <div class="info-item"><span>更新时间戳：</span><span id="updateTime">-</span></div>
     </div>
   </div>
 
   <div class="notice">
     💡 <strong>提示：</strong>
-    <br/>1. <code>capture="environment"</code> 在部分安卓手机微信里会直接拉起后置相机；在 iOS 微信中通常会弹出“拍照/从相册选取”菜单选项。
-    <br/>2. 请将此 HTML 部署到你预设的 <code>https://xy77.github.io/</code> 仓库并推送更新即可测试。
+    <br/>1. 点击“清除缓存并强制刷新”会往 URL 动态写入时间戳参数并进行 <code>location.replace</code>，确保彻底跳过微信内置内核的本地缓存。
+    <br/>2. 部署到 GitHub Pages 后因 CDN 节点同步通常需要几十秒，点此按钮可确保获取 GitHub 上的最新文件。
   </div>
 
   <script>
     const cameraInput = document.getElementById('cameraInput');
     const fileInput = document.getElementById('fileInput');
+    const userCameraInput = document.getElementById('userCameraInput');
+    const reloadBtn = document.getElementById('reloadBtn');
+    
     const previewImg = document.getElementById('previewImg');
     const placeholder = document.getElementById('placeholder');
     const metaInfo = document.getElementById('metaInfo');
     const fileName = document.getElementById('fileName');
     const fileSize = document.getElementById('fileSize');
     const fileType = document.getElementById('fileType');
+    const updateTime = document.getElementById('updateTime');
 
     function handleFileSelection(event) {
       const files = event.target.files;
@@ -245,16 +256,17 @@
       fileName.textContent = file.name;
       fileSize.textContent = (file.size / 1024).toFixed(1) + ' KB';
       fileType.textContent = file.type || '未知';
+      updateTime.textContent = new Date().toLocaleTimeString();
       metaInfo.style.display = 'block';
 
-      // 预览展示
+      // 本地 FileReader 进行图片渲染预览
       const reader = new FileReader();
       reader.onload = function(e) {
         previewImg.src = e.target.result;
         previewImg.style.display = 'block';
         placeholder.style.display = 'none';
 
-        // 尝试向小程序发送数据 (web-view 通信机制)
+        // 尝试向小程序发送数据 (web-view postMessage 机制)
         if (window.wx && wx.miniProgram) {
           wx.miniProgram.postMessage({
             data: {
@@ -268,8 +280,28 @@
       reader.readAsDataURL(file);
     }
 
+    // 绑定文件选择事件
     cameraInput.addEventListener('change', handleFileSelection);
     fileInput.addEventListener('change', handleFileSelection);
+    userCameraInput.addEventListener('change', handleFileSelection);
+
+    // 强制清除缓存刷新逻辑
+    reloadBtn.addEventListener('click', function() {
+      // 1. 清除当前页面所有本地持久缓存
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn('清理 WebStorage 失败:', e);
+      }
+
+      // 2. 构造带时间戳的全新 URL，彻底击穿 WebView 本地与 CDN 缓存
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('_t', Date.now().toString());
+
+      // 3. 使用 replace 替换当前页面，避免在小程序内部产生多余的后退历史
+      window.location.replace(currentUrl.toString());
+    });
   </script>
 </body>
 </html>
