@@ -207,31 +207,16 @@
       </button>
     </div>
 
+<label>选择你喜欢的框架：</label>
+<input list="frameworks" />
 
-
-
-    <!-- 3. 前置摄像头测试 -->
-    <div class="action-btn-wrapper">
-      <input 
-        id="userCameraInput" 
-        type="file" 
-        capture="camera" 
-        accept="image/*" 
-        class="hidden-input" 
-      />
-      <button class="btn btn-warn" type="button">
-       iOS 可能弹出选择框(capture="camera")
-      </button>
-    </div>
-  <!-- 3. 前置摄像头测试 -->
-    <div class="action-btn-wrapper">
-      <input type="file">
-      <button class="btn btn-warn" type="button">
-       打开系统文件管理器，可选任意文件
-      </button>
-    </div>
-
-
+<datalist id="frameworks">
+  <option value="React">
+  <option value="Vue">
+  <option value="Svelte">
+  <option value="Angular">
+  <option value="Solid">
+</datalist>
 
 
 
