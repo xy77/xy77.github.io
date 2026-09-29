@@ -11,6 +11,67 @@ async function runMermaidPreview(initialContent) {
   let queue = Promise.resolve();
   const embedded = window.parent !== window;
   document.getElementById('toolbar').hidden = embedded;
+  const minimap = document.getElementById('minimap');
+  const mapImage = document.getElementById('map-image');
+  const mapViewport = document.getElementById('map-viewport');
+  let mapUrl = null;
+  let pan = { x: 0, y: 0 };
+  let drag = null;
+  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+  function layout() {
+    if (!dimensions) { minimap.hidden = true; return; }
+    const width = dimensions.width * zoom / 100;
+    const height = dimensions.height * zoom / 100;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const baseX = (vw - width) / 2;
+    let x = baseX + pan.x;
+    let y = 64 + pan.y;
+    if (!embedded) {
+      x = clamp(x, vw * .05 - width, vw * .95);
+      y = clamp(y, vh * .05 - height, vh * .95);
+      pan = { x: x - baseX, y: y - 64 };
+    }
+    diagram.style.transform = `translate(${x}px, ${y}px)`;
+    minimap.hidden = embedded || (width <= vw && height <= vh);
+    if (minimap.hidden) return;
+    // Fit the union of the diagram and viewport so the viewport outline stays visible.
+    const left = Math.min(0, x), top = Math.min(0, y);
+    const worldWidth = Math.max(vw, x + width) - left;
+    const worldHeight = Math.max(vh, y + height) - top;
+    const scale = Math.min(280 / worldWidth, 180 / worldHeight);
+    const ox = (300 - worldWidth * scale) / 2;
+    const oy = (200 - worldHeight * scale) / 2;
+    Object.assign(mapImage.style, { left: `${ox + (x - left) * scale}px`, top: `${oy + (y - top) * scale}px`, width: `${width * scale}px`, height: `${height * scale}px` });
+    Object.assign(mapViewport.style, { left: `${ox - left * scale}px`, top: `${oy - top * scale}px`, width: `${vw * scale}px`, height: `${vh * scale}px` });
+  }
+  function updateMapImage(svg) {
+    if (mapUrl) URL.revokeObjectURL(mapUrl);
+    mapUrl = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }));
+    mapImage.src = mapUrl;
+  }
+  diagram.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.target.closest('text, tspan, foreignObject')) return;
+    event.preventDefault();
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: pan.x, startY: pan.y };
+    diagram.setPointerCapture(event.pointerId);
+    diagram.classList.add('dragging');
+  });
+  diagram.addEventListener('pointermove', event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    pan = { x: drag.startX + event.clientX - drag.x, y: drag.startY + event.clientY - drag.y };
+    layout();
+  });
+  function stopDrag() {
+    if (drag && diagram.hasPointerCapture(drag.id)) diagram.releasePointerCapture(drag.id);
+    drag = null;
+    diagram.classList.remove('dragging');
+  }
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) diagram.addEventListener(name, stopDrag);
+  window.addEventListener('blur', stopDrag);
+  window.addEventListener('resize', layout);
+  window.addEventListener('scroll', layout);
 
   function resize() {
     const svg = diagram.querySelector('svg');
@@ -19,8 +80,18 @@ async function runMermaidPreview(initialContent) {
       svg.style.width = `${dimensions.width * zoom / 100}px`;
       svg.style.height = `${dimensions.height * zoom / 100}px`;
     }
-    document.getElementById('zoom').textContent = `${zoom}%`;
+    const select = document.getElementById('zoom');
+    select.querySelector('[data-custom]')?.remove();
+    if (![50, 100, 150, 200, 300].includes(zoom)) {
+      const option = new Option(`${zoom}%`, String(zoom));
+      option.dataset.custom = 'true';
+      option.hidden = true;
+      select.add(option);
+    }
+    select.value = String(zoom);
+    layout();
   }
+  document.getElementById('zoom').onchange = event => { zoom = Number(event.target.value); resize(); };
   function changeZoom(delta) {
     zoom = Math.max(50, Math.min(300, zoom + delta));
     resize();
@@ -28,7 +99,16 @@ async function runMermaidPreview(initialContent) {
   document.getElementById('plus').onclick = () => changeZoom(20);
   document.getElementById('minus').onclick = () => changeZoom(-20);
   window.addEventListener('wheel', event => {
-    if (!(event.ctrlKey || event.metaKey) || !event.deltaY) return;
+    if (!event.deltaY && !event.deltaX) return;
+    if (!(event.ctrlKey || event.metaKey)) {
+      if (!dimensions) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1;
+      pan.x -= event.deltaX * unit;
+      pan.y -= event.deltaY * unit;
+      layout();
+      return;
+    }
     event.preventDefault();
     changeZoom(event.deltaY < 0 ? 20 : -20);
   }, { passive: false });
@@ -60,13 +140,25 @@ async function runMermaidPreview(initialContent) {
       URL.revokeObjectURL(url);
     }
   }
-  document.getElementById('copy').onclick = async () => {
+  const copyButton = document.getElementById('copy');
+  const copyIcon = copyButton.innerHTML;
+  copyButton.onclick = async () => {
+    if (copyButton.getAttribute('aria-busy') === 'true') return;
+    copyButton.innerHTML = '<svg class="spinner" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-8-8"/></svg>';
+    copyButton.setAttribute('aria-busy', 'true');
+    let timeout;
     try {
       if (!navigator.clipboard?.write || !window.ClipboardItem) throw new Error('当前浏览器不支持复制图片');
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': imageBlob() })]);
-      status.textContent = '图片已复制';
-    } catch (error) {
-      status.textContent = `复制失败：${error.message}`;
+      await Promise.race([
+        navigator.clipboard.write([new ClipboardItem({ 'image/png': imageBlob() })]),
+        new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 15000); })
+      ]);
+      copyButton.innerHTML = copyIcon;
+      copyButton.removeAttribute('aria-busy');
+    } catch {
+      // Keep the loading icon on failure, as requested.
+    } finally {
+      clearTimeout(timeout);
     }
   };
 
@@ -93,6 +185,7 @@ async function runMermaidPreview(initialContent) {
       const box = svg.viewBox.baseVal;
       const rect = svg.getBoundingClientRect();
       dimensions = { width: box.width || rect.width || 800, height: box.height || rect.height || 600 };
+      updateMapImage(svg);
       resize();
       status.textContent = '';
       report(content);
@@ -100,6 +193,7 @@ async function runMermaidPreview(initialContent) {
       if (version !== revision) return;
       diagram.replaceChildren();
       dimensions = null;
+      layout();
       const message = error.message || String(error);
       const location = error.hash?.loc;
       const line = location?.first_line ?? Number(message.match(/line\s+(\d+)/i)?.[1] || 1);
@@ -128,4 +222,3 @@ async function runMermaidPreview(initialContent) {
     status.textContent = 'Mermaid 加载失败，请检查网络后重新预览';
   }
 }
-
