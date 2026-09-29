@@ -1,3 +1,5 @@
+import { isMermaidContent, buildMermaidPreview } from './mermaid-preview.js';
+
 const editorStorageKey = 'zen_editor_content';
 const previewStorageKey = 'zen_preview_html';
 const markdownPreviewDefaultEditorRatio = 70;
@@ -11,6 +13,7 @@ const markdownUpdateMessageFromEditor = 'zen-md-editor-update';
 export function detectType(content) {
   const trimmed = content.trim();
   if (!trimmed) return 'html';
+  if (isMermaidContent(trimmed)) return 'mermaid';
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) return 'json';
   if (trimmed.includes('<html') || trimmed.includes('<!DOCTYPE')) return 'html';
   if (isReactCode(trimmed)) return 'react';
@@ -48,6 +51,8 @@ function toInlineScriptString(value) {
 
 function buildPreviewHtml(content) {
   const type = detectType(content);
+
+  if (type === 'mermaid') return buildMermaidPreview(content);
 
   if (type === 'react') {
     const reactSource = getReactPreviewSource(content);
@@ -250,6 +255,7 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
   let syncingFromEditorTimer = null;
   let iframeLoaded = false;
   let pendingRefreshContent = null;
+  let previewType = null;
 
   function ensureElements() {
     if (pane && iframe && handle && openButton) return;
@@ -327,6 +333,8 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
 
   function show(content) {
     ensureElements();
+    previewType = detectType(content);
+    iframe.title = previewType === 'mermaid' ? 'Mermaid 预览' : 'Markdown 预览';
     if (editorRatio === null) editorRatio = markdownPreviewDefaultEditorRatio;
     container.classList.add('has-md-preview');
     onVisibilityChange?.(true);
@@ -338,6 +346,10 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
 
   function refresh(content) {
     if (!iframe || !container.classList.contains('has-md-preview')) return;
+    if (detectType(content) !== previewType) {
+      show(content);
+      return;
+    }
     if (!iframeLoaded) {
       pendingRefreshContent = content;
       return;
@@ -409,6 +421,21 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
   });
 
   window.addEventListener('message', (event) => {
+    if (event.source === iframe?.contentWindow && event.data?.type === 'zen-mermaid-result') {
+      if (event.data.content !== editor.getValue() || detectType(editor.getValue()) !== 'mermaid') return;
+      const model = editor.getModel();
+      const error = event.data.error;
+      const line = Math.max(1, Math.min(model.getLineCount(), Number(error?.line) || 1));
+      window.monaco.editor.setModelMarkers(model, 'mermaid', error ? [{
+        severity: window.monaco.MarkerSeverity.Error,
+        message: String(error.message),
+        startLineNumber: line,
+        endLineNumber: line,
+        startColumn: 1,
+        endColumn: Math.max(2, model.getLineMaxColumn(line))
+      }] : []);
+      return;
+    }
     if (event.source !== iframe?.contentWindow || event.data?.type !== markdownScrollMessageFromPreview) return;
     syncEditorToPreviewPercentage(event.data.percentage);
   });
@@ -722,7 +749,7 @@ export async function initEditor({ showMessage, onShare }) {
   let isComposing = false;
 
   function refreshMarkdownPreview(value = getContent(), type = detectType(value)) {
-    if (!markdownPreview.isVisible() || isComposing || type !== 'markdown') return;
+    if (!markdownPreview.isVisible() || isComposing || !['markdown', 'mermaid'].includes(type)) return;
     markdownPreview.refresh(value);
   }
 
@@ -929,7 +956,8 @@ export async function initEditor({ showMessage, onShare }) {
     const value = getContent();
     localStorage.setItem(editorStorageKey, value);
     const type = detectType(value);
-    window.monaco.editor.setModelLanguage(editor.getModel(), ['markdown', 'json'].includes(type) ? type : 'html');
+    window.monaco.editor.setModelMarkers(editor.getModel(), 'mermaid', []);
+    window.monaco.editor.setModelLanguage(editor.getModel(), type === 'mermaid' ? 'plaintext' : ['markdown', 'json'].includes(type) ? type : 'html');
     jsonContentKey.set(type === 'json');
     refreshMarkdownPreview(value, type);
   });
@@ -966,9 +994,9 @@ export async function initEditor({ showMessage, onShare }) {
       return;
     }
 
-    if (type === 'markdown') {
+    if (type === 'markdown' || type === 'mermaid') {
       markdownPreview.show(content);
-      showMessage('Markdown 预览已更新');
+      showMessage(type === 'mermaid' ? 'Mermaid 预览已更新' : 'Markdown 预览已更新');
       return;
     }
 
