@@ -17,6 +17,8 @@ async function runMermaidPreview(initialContent) {
   let mapUrl = null;
   let pan = { x: 0, y: 0 };
   let drag = null;
+  let mapDrag = null;
+  let mapScale = 1;
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
   function layout() {
@@ -36,44 +38,72 @@ async function runMermaidPreview(initialContent) {
     diagram.style.transform = `translate(${x}px, ${y}px)`;
     minimap.hidden = embedded || (width <= vw && height <= vh);
     if (minimap.hidden) return;
-    // Fit the union of the diagram and viewport so the viewport outline stays visible.
-    const left = Math.min(0, x), top = Math.min(0, y);
-    const worldWidth = Math.max(vw, x + width) - left;
-    const worldHeight = Math.max(vh, y + height) - top;
+    // Use stable diagram coordinates, including every allowed viewport position.
+    const left = -.95 * vw, top = -.95 * vh;
+    const worldWidth = width + 1.9 * vw;
+    const worldHeight = height + 1.9 * vh;
     const scale = Math.min(280 / worldWidth, 180 / worldHeight);
+    mapScale = scale;
     const ox = (300 - worldWidth * scale) / 2;
     const oy = (200 - worldHeight * scale) / 2;
-    Object.assign(mapImage.style, { left: `${ox + (x - left) * scale}px`, top: `${oy + (y - top) * scale}px`, width: `${width * scale}px`, height: `${height * scale}px` });
-    Object.assign(mapViewport.style, { left: `${ox - left * scale}px`, top: `${oy - top * scale}px`, width: `${vw * scale}px`, height: `${vh * scale}px` });
+    Object.assign(mapImage.style, { left: `${ox - left * scale}px`, top: `${oy - top * scale}px`, width: `${width * scale}px`, height: `${height * scale}px` });
+    Object.assign(mapViewport.style, { left: `${ox + (-x - left) * scale}px`, top: `${oy + (-y - top) * scale}px`, width: `${vw * scale}px`, height: `${vh * scale}px` });
   }
+  mapViewport.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    mapDrag = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: pan.x, startY: pan.y, scale: mapScale };
+    mapViewport.setPointerCapture(event.pointerId);
+    mapViewport.classList.add('dragging');
+  });
+  mapViewport.addEventListener('pointermove', event => {
+    if (!mapDrag || mapDrag.id !== event.pointerId) return;
+    pan = {
+      x: mapDrag.startX - (event.clientX - mapDrag.x) / mapDrag.scale,
+      y: mapDrag.startY - (event.clientY - mapDrag.y) / mapDrag.scale
+    };
+    layout();
+  });
+  function stopMapDrag() {
+    const previous = mapDrag;
+    mapDrag = null;
+    if (previous && mapViewport.hasPointerCapture(previous.id)) mapViewport.releasePointerCapture(previous.id);
+    mapViewport.classList.remove('dragging');
+  }
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) mapViewport.addEventListener(name, stopMapDrag);
+  window.addEventListener('blur', stopMapDrag);
+  window.addEventListener('resize', stopMapDrag);
   function updateMapImage(svg) {
     if (mapUrl) URL.revokeObjectURL(mapUrl);
     mapUrl = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' }));
     mapImage.src = mapUrl;
   }
-  diagram.addEventListener('pointerdown', event => {
-    if (event.button !== 0 || event.target.closest('text, tspan, foreignObject')) return;
+  const dragSurface = document.body;
+  dragSurface.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || event.target.closest('#toolbar, #minimap, text, tspan, foreignObject')) return;
     event.preventDefault();
     drag = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: pan.x, startY: pan.y };
-    diagram.setPointerCapture(event.pointerId);
-    diagram.classList.add('dragging');
+    dragSurface.setPointerCapture(event.pointerId);
+    dragSurface.classList.add('dragging');
   });
-  diagram.addEventListener('pointermove', event => {
+  dragSurface.addEventListener('pointermove', event => {
     if (!drag || drag.id !== event.pointerId) return;
     pan = { x: drag.startX + event.clientX - drag.x, y: drag.startY + event.clientY - drag.y };
     layout();
   });
   function stopDrag() {
-    if (drag && diagram.hasPointerCapture(drag.id)) diagram.releasePointerCapture(drag.id);
+    const previous = drag;
     drag = null;
-    diagram.classList.remove('dragging');
+    if (previous && dragSurface.hasPointerCapture(previous.id)) dragSurface.releasePointerCapture(previous.id);
+    dragSurface.classList.remove('dragging');
   }
-  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) diagram.addEventListener(name, stopDrag);
+  for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) dragSurface.addEventListener(name, stopDrag);
   window.addEventListener('blur', stopDrag);
   window.addEventListener('resize', layout);
   window.addEventListener('scroll', layout);
 
   function resize() {
+    stopMapDrag();
     const svg = diagram.querySelector('svg');
     if (svg && dimensions) {
       svg.style.maxWidth = 'none';
