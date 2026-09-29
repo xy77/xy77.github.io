@@ -10,7 +10,6 @@ async function runMermaidPreview(initialContent) {
   let dimensions = null;
   let queue = Promise.resolve();
   const embedded = window.parent !== window;
-  document.getElementById('toolbar').hidden = embedded;
   const minimap = document.getElementById('minimap');
   const mapImage = document.getElementById('map-image');
   const mapViewport = document.getElementById('map-viewport');
@@ -30,13 +29,11 @@ async function runMermaidPreview(initialContent) {
     const baseX = (vw - width) / 2;
     let x = baseX + pan.x;
     let y = 64 + pan.y;
-    if (!embedded) {
-      x = clamp(x, vw * .05 - width, vw * .95);
-      y = clamp(y, vh * .05 - height, vh * .95);
-      pan = { x: x - baseX, y: y - 64 };
-    }
+    x = clamp(x, vw * .05 - width, vw * .95);
+    y = clamp(y, vh * .05 - height, vh * .95);
+    pan = { x: x - baseX, y: y - 64 };
     diagram.style.transform = `translate(${x}px, ${y}px)`;
-    minimap.hidden = embedded || (width <= vw && height <= vh);
+    minimap.hidden = width <= vw && height <= vh;
     if (minimap.hidden) return;
     // Use stable diagram coordinates, including every allowed viewport position.
     const left = -.95 * vw, top = -.95 * vh;
@@ -172,15 +169,35 @@ async function runMermaidPreview(initialContent) {
   }
   const copyButton = document.getElementById('copy');
   const copyIcon = copyButton.innerHTML;
+  function copyImage() {
+    if (!embedded) return navigator.clipboard.write([new ClipboardItem({ 'image/png': imageBlob() })]);
+    return new Promise(async (resolve, reject) => {
+      const channel = new MessageChannel();
+      const deadline = setTimeout(() => { channel.port1.close(); reject(new Error('timeout')); }, 15000);
+      channel.port1.onmessage = event => {
+        clearTimeout(deadline);
+        channel.port1.close();
+        event.data?.ok ? resolve() : reject(new Error('copy failed'));
+      };
+      try {
+        const blob = await imageBlob();
+        window.parent.postMessage({ type: 'zen-mermaid-copy', blob }, '*', [channel.port2]);
+      } catch (error) {
+        clearTimeout(deadline);
+        channel.port1.close();
+        reject(error);
+      }
+    });
+  }
   copyButton.onclick = async () => {
     if (copyButton.getAttribute('aria-busy') === 'true') return;
     copyButton.innerHTML = '<svg class="spinner" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-8-8"/></svg>';
     copyButton.setAttribute('aria-busy', 'true');
     let timeout;
     try {
-      if (!navigator.clipboard?.write || !window.ClipboardItem) throw new Error('当前浏览器不支持复制图片');
+      if (!embedded && (!navigator.clipboard?.write || !window.ClipboardItem)) throw new Error('当前浏览器不支持复制图片');
       await Promise.race([
-        navigator.clipboard.write([new ClipboardItem({ 'image/png': imageBlob() })]),
+        copyImage(),
         new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 15000); })
       ]);
       copyButton.innerHTML = copyIcon;

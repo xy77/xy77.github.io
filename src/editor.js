@@ -421,6 +421,15 @@ function initMarkdownPreview({ editor, onVisibilityChange, showMessage }) {
   });
 
   window.addEventListener('message', (event) => {
+    if (event.source === iframe?.contentWindow && event.data?.type === 'zen-mermaid-copy') {
+      const port = event.ports[0];
+      const blob = event.data.blob;
+      if (!port || !(blob instanceof Blob) || blob.type !== 'image/png') return;
+      Promise.resolve().then(() => navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]))
+        .then(() => port.postMessage({ ok: true }), () => port.postMessage({ ok: false }))
+        .finally(() => port.close());
+      return;
+    }
     if (event.source === iframe?.contentWindow && event.data?.type === 'zen-mermaid-result') {
       if (event.data.content !== editor.getValue() || detectType(editor.getValue()) !== 'mermaid') return;
       const model = editor.getModel();
