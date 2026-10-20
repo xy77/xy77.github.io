@@ -22,13 +22,19 @@ function decodeContent(value) {
   return new TextDecoder().decode(bytes);
 }
 
+function normalizeOrder(value) {
+  const order = Number(value);
+  return Number.isFinite(order) ? order : 0;
+}
+
 function parseProjectMetadata(value, fallbackSummary) {
   if (!value || typeof value !== 'object') {
-    return { summary: fallbackSummary, id: '' };
+    return { summary: fallbackSummary, id: '', order: 0 };
   }
   return {
     summary: typeof value.summary === 'string' && value.summary.trim() ? value.summary.trim() : fallbackSummary,
-    id: typeof value.id === 'string' || typeof value.id === 'number' ? String(value.id).trim() : ''
+    id: typeof value.id === 'string' || typeof value.id === 'number' ? String(value.id).trim() : '',
+    order: normalizeOrder(value.order)
   };
 }
 
@@ -83,6 +89,7 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
       name: item.publishName || item.name,
       summary: item.summary || item.name,
       id: item.id ? String(item.id) : '',
+      order: normalizeOrder(item.order),
       key: item.key || `${item.projectScope || '1'}:${item.name}`,
       projectScope: item.projectScope || '1'
     };
@@ -199,9 +206,9 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     }
 
     const legacySummaryFile = await getFile(`${folder}/_summary.txt`, token);
-    if (!legacySummaryFile) return { summary: fallbackSummary, id: '' };
+    if (!legacySummaryFile) return { summary: fallbackSummary, id: '', order: 0 };
     const summary = decodeContent(legacySummaryFile.content).trim();
-    return { summary: summary || fallbackSummary, id: '' };
+    return { summary: summary || fallbackSummary, id: '', order: 0 };
   }
 
   async function saveProjectMetadata(folder, metadata, token) {
@@ -209,6 +216,7 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     const existingFile = await getFile(metadataPath, token);
     const payload = { summary: metadata.summary };
     if (metadata.id) payload.id = metadata.id;
+    payload.order = normalizeOrder(metadata.order);
     const response = await putFile(
       metadataPath,
       `${JSON.stringify(payload, null, 2)}\n`,
@@ -268,10 +276,12 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
       const projectSummary = isNewProjectMode
         ? newProjectSummary.value.trim() || folderName
         : existingMetadata.summary || selectedMeta?.summary || folderName;
-      const shouldSaveMetadata = isNewProjectMode || enteredProjectId !== (selectedMeta?.id || '');
-      if (shouldSaveMetadata) {
-        await saveProjectMetadata(folder, { summary: projectSummary, id: enteredProjectId }, token);
-      }
+      const nextOrder = Math.max(0, ...folders.map((item) => normalizeOrder(item.order))) + 10;
+      await saveProjectMetadata(
+        folder,
+        { summary: projectSummary, id: enteredProjectId, order: nextOrder },
+        token
+      );
 
       const getResponse = await fetch(
         `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(path)}?ref=${encodeURIComponent(config.branch)}`,
@@ -281,6 +291,8 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
       const putResponse = await putFile(path, rawContent, token, `deploy: ${path}`, sha);
       if (!putResponse.ok) throw new Error('推送失败，请检查仓库权限');
 
+      api.reset();
+      sidebar.reset();
       const url = `${config.publicBaseUrl}/${path}`;
       await copyText(url);
       showMessage(`发布成功！已复制链接：${url}`);

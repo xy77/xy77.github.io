@@ -264,6 +264,11 @@ function getPathDate(relativePath, sourcePath) {
   return fs.statSync(sourcePath).mtime.toISOString();
 }
 
+function normalizeOrder(value) {
+  const order = Number(value);
+  return Number.isFinite(order) ? order : 0;
+}
+
 function readFolderMetadata(folderPath) {
   const metadataPath = path.join(folderPath, '_summary.json');
   if (fs.existsSync(metadataPath)) {
@@ -272,7 +277,8 @@ function readFolderMetadata(folderPath) {
       if (metadata && typeof metadata === 'object') {
         return {
           summary: typeof metadata.summary === 'string' ? metadata.summary.trim() : '',
-          id: typeof metadata.id === 'string' || typeof metadata.id === 'number' ? String(metadata.id).trim() : ''
+          id: typeof metadata.id === 'string' || typeof metadata.id === 'number' ? String(metadata.id).trim() : '',
+          order: normalizeOrder(metadata.order)
         };
       }
     } catch (error) {
@@ -281,9 +287,9 @@ function readFolderMetadata(folderPath) {
   }
 
   const summaryPath = path.join(folderPath, '_summary.txt');
-  if (!fs.existsSync(summaryPath)) return { summary: '', id: '' };
+  if (!fs.existsSync(summaryPath)) return { summary: '', id: '', order: 0 };
   const summary = fs.readFileSync(summaryPath, 'utf8').trim();
-  return { summary, id: '' };
+  return { summary, id: '', order: 0 };
 }
 
 function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
@@ -304,7 +310,8 @@ function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
         path: toPosixPath(nextRelative),
         date: getPathDate(nextRelative, source),
         summary: metadata.summary || entry.name,
-        id: metadata.id
+        id: metadata.id,
+        order: metadata.order
       });
       continue;
     }
@@ -321,6 +328,8 @@ function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
   }
 
   items.sort((a, b) => {
+    const orderDiff = (b.order || 0) - (a.order || 0);
+    if (orderDiff) return orderDiff;
     const dateDiff = new Date(b.date) - new Date(a.date);
     if (dateDiff) return dateDiff;
     return a.name.localeCompare(b.name, 'zh-CN');

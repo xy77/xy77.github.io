@@ -19,13 +19,19 @@ function decodeGitHubText(content) {
   return new TextDecoder().decode(bytes);
 }
 
+function normalizeOrder(value) {
+  const order = Number(value);
+  return Number.isFinite(order) ? order : 0;
+}
+
 function normalizeProjectMetadata(value, fallbackSummary) {
   if (!value || typeof value !== 'object') {
-    return { summary: fallbackSummary, id: '' };
+    return { summary: fallbackSummary, id: '', order: 0 };
   }
   return {
     summary: typeof value.summary === 'string' && value.summary.trim() ? value.summary.trim() : fallbackSummary,
-    id: typeof value.id === 'string' || typeof value.id === 'number' ? String(value.id).trim() : ''
+    id: typeof value.id === 'string' || typeof value.id === 'number' ? String(value.id).trim() : '',
+    order: normalizeOrder(value.order)
   };
 }
 
@@ -100,23 +106,25 @@ export function createProjectApi(getToken) {
       if (!summaryResponse.ok) return null;
       const data = await summaryResponse.json();
       const summary = data.content ? decodeGitHubText(data.content).trim() : '';
-      return { summary: summary || path.split('/').pop(), id: '' };
+      return { summary: summary || path.split('/').pop(), id: '', order: 0 };
     } catch {
       return null;
     }
   }
 
-  async function addProjectItemDetails(items) {
+  async function addProjectItemDetails(items, sortByOrder = false) {
     const detailedItems = await Promise.all(
       items.map(async (item) => {
         const date = item.date || (await fetchPathCommitDate(item.path));
         let summary = item.summary || item.name;
         let id = item.id ? String(item.id).trim() : '';
-        if (item.type === 'dir' && (!item.summary || !id)) {
+        let order = normalizeOrder(item.order);
+        if (item.type === 'dir' && (!item.summary || !id || !order)) {
           const metadata = await fetchFolderMetadata(item.path);
           if (metadata) {
             summary = metadata.summary || summary;
             id = metadata.id || id;
+            order = metadata.order;
           }
         }
         return {
@@ -125,11 +133,20 @@ export function createProjectApi(getToken) {
           publishName: item.publishName || item.name,
           date: date || '1970-01-01T00:00:00Z',
           summary,
-          id
+          id,
+          order
         };
       })
     );
-    return detailedItems.sort((left, right) => new Date(right.date) - new Date(left.date));
+    return detailedItems.sort((left, right) => {
+      if (sortByOrder) {
+        const orderDiff = right.order - left.order;
+        if (orderDiff) return orderDiff;
+      }
+      const dateDiff = new Date(right.date) - new Date(left.date);
+      if (dateDiff) return dateDiff;
+      return left.name.localeCompare(right.name, 'zh-CN');
+    });
   }
 
   async function fetchRootProjectItems(scope = 'all') {
@@ -167,7 +184,7 @@ export function createProjectApi(getToken) {
       }
     }
 
-    return addProjectItemDetails(items);
+    return addProjectItemDetails(items, true);
   }
 
   function isVisibleSidebarItem(item) {
