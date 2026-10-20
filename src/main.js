@@ -16,6 +16,23 @@ const clickWords = [
 initBackgroundEffects({ zIndex: 99, count: 399, clickWords });
 
 const taskView = document.getElementById('task-view');
+const prefetchedPages = new Set();
+
+function prefetchPage(path) {
+  if (prefetchedPages.has(path)) return;
+  prefetchedPages.add(path);
+  const link = document.createElement('link');
+  link.rel = 'prefetch';
+  link.href = path;
+  document.head.appendChild(link);
+}
+
+taskView?.querySelectorAll('a[href]').forEach((link) => {
+  link.addEventListener('click', () => {
+    link.classList.add('is-loading');
+    link.setAttribute('aria-busy', 'true');
+  });
+});
 let blankFocused = false;
 let spacePresses = [];
 document.body.addEventListener('click', (event) => {
@@ -29,6 +46,7 @@ document.addEventListener('keydown', (event) => {
   spacePresses = spacePresses.filter(time => now - time < 900);
   spacePresses.push(now);
   if (spacePresses.length >= 4) {
+    prefetchPage('/cursor/');
     taskView.classList.remove('hidden');
     taskView.setAttribute('aria-hidden', 'false');
     spacePresses = [];
