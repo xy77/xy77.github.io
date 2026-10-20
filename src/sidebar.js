@@ -1,6 +1,6 @@
 import { config } from './config.js';
 
-const storyUrlBase = 'https://zen.dev.mugua.team:8888/index.php?m=execution&f=storyView&storyID=';
+const storyUrlBase = 'https://zen.dev.muguafabao.com/index.php?m=story&f=view&storyID=';
 
 export function initSidebar({ api, showMessage }) {
   const trigger = document.getElementById('sidebar-trigger');
