@@ -1,6 +1,8 @@
 import { config, encodeGitHubPath, secondaryRootFolder } from './config.js';
 
-const hiddenProjectDirectories = new Set(['temp', '.github', 'share']);
+const draftFolderName = 'draft';
+const draftIndexName = '_index.json';
+const hiddenProjectDirectories = new Set(['temp', '.github', 'share', draftFolderName]);
 const hiddenSidebarDirectories = new Set(['.github', 'share']);
 const hiddenSidebarExtensions = new Set(['webp', 'png', 'jpg', 'jpeg', 'bmp', 'heic', 'gif']);
 
@@ -22,6 +24,29 @@ function decodeGitHubText(content) {
 function normalizeOrder(value) {
   const order = Number(value);
   return Number.isFinite(order) ? order : 0;
+}
+
+function parseShanghaiDateTime(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(String(value || '').trim());
+  if (!match) return null;
+  return new Date(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}+08:00`);
+}
+
+function normalizeDraftRecords(value) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.files)) return [];
+  return value.files
+    .filter((item) => item && typeof item.file === 'string' && item.file.trim())
+    .map((item) => ({
+      file: item.file.trim(),
+      date: typeof item.date === 'string' ? item.date : '',
+      createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+      expiresAt: typeof item.expiresAt === 'string' ? item.expiresAt : ''
+    }));
+}
+
+function isDraftRecordVisible(record) {
+  const expiresAt = parseShanghaiDateTime(record.expiresAt);
+  return Boolean(expiresAt && expiresAt.getTime() > Date.now());
 }
 
 function normalizeProjectMetadata(value, fallbackSummary) {
@@ -56,6 +81,21 @@ export function createProjectApi(getToken) {
     return items.map((item) => ({ ...item }));
   }
 
+  async function fetchPublicDraftItems() {
+    const manifest = await fetchPublicProjectManifest();
+    return normalizeDraftRecords({ files: manifest.drafts || [] })
+      .filter(isDraftRecordVisible)
+      .map((record) => ({
+        type: 'file',
+        name: record.file,
+        path: `${draftFolderName}/${record.file}`,
+        date: record.date || parseShanghaiDateTime(record.createdAt)?.toISOString() || '1970-01-01T00:00:00Z',
+        summary: record.file,
+        createdAt: record.createdAt,
+        expiresAt: record.expiresAt
+      }));
+  }
+
   async function fetchGithubContents(path) {
     const token = getToken();
     if (!token) return fetchPublicManifestContents(path);
@@ -82,6 +122,52 @@ export function createProjectApi(getToken) {
     } catch {
       return null;
     }
+  }
+
+  async function fetchGithubDraftItems() {
+    const token = getToken();
+    if (!token) return fetchPublicDraftItems();
+
+    const response = await fetch(
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(`${draftFolderName}/${draftIndexName}`)}?ref=${encodeURIComponent(config.branch)}&t=${Date.now()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (response.status === 404) return [];
+    if (!response.ok) throw new Error('读取临时文件索引失败');
+    const indexFile = await response.json();
+    const records = normalizeDraftRecords(JSON.parse(decodeGitHubText(indexFile.content))).filter(isDraftRecordVisible);
+    if (!records.length) return [];
+
+    const directoryResponse = await fetch(
+      `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${encodeGitHubPath(draftFolderName)}?ref=${encodeURIComponent(config.branch)}&t=${Date.now()}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!directoryResponse.ok) throw new Error('读取临时文件目录失败');
+    const directoryItems = await directoryResponse.json();
+    const directoryNames = new Set(directoryItems.filter((item) => item.type === 'file').map((item) => item.name));
+
+    return Promise.all(
+      records
+        .filter((record) => directoryNames.has(record.file))
+        .map(async (record) => {
+          const path = `${draftFolderName}/${record.file}`;
+          const date = await fetchPathCommitDate(path);
+          return {
+            type: 'file',
+            name: record.file,
+            path,
+            date: date || parseShanghaiDateTime(record.createdAt)?.toISOString() || '1970-01-01T00:00:00Z',
+            summary: record.file,
+            createdAt: record.createdAt,
+            expiresAt: record.expiresAt
+          };
+        })
+    );
+  }
+
+  async function fetchDraftItems() {
+    const items = await fetchGithubDraftItems();
+    return items.sort((left, right) => new Date(right.date) - new Date(left.date));
   }
 
   async function fetchFolderMetadata(path) {
@@ -150,6 +236,7 @@ export function createProjectApi(getToken) {
   }
 
   async function fetchRootProjectItems(scope = 'all') {
+    if (scope === draftFolderName) return fetchDraftItems();
     const rootData = await fetchGithubContents('');
     let items = [];
 
@@ -188,13 +275,14 @@ export function createProjectApi(getToken) {
   }
 
   function isVisibleSidebarItem(item) {
-    if (item.name === '_summary.txt' || item.name === '_summary.json' || item.name === '.DS_Store') return false;
+    if (item.name === '_summary.txt' || item.name === '_summary.json' || item.name === draftIndexName || item.name === '.DS_Store') return false;
     if (item.type === 'dir') return !hiddenSidebarDirectories.has(item.name);
     return item.type === 'file' && !hiddenSidebarExtensions.has(getFileExtension(item.name));
   }
 
   return {
     addProjectItemDetails,
+    fetchDraftItems,
     fetchGithubContents,
     fetchRootProjectItems,
     isVisibleSidebarItem,

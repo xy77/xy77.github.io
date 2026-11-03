@@ -9,6 +9,8 @@ const privateRoot = process.env.PRIVATE_SOURCE_ROOT
   : path.join(publicRoot, 'private-source');
 const appBuildRoot = path.join(publicRoot, '.build', 'app');
 const outputRoot = path.join(publicRoot, '_site');
+const draftFolderName = 'draft';
+const draftIndexName = '_index.json';
 
 const functionalFiles = new Set([
   'index.html',
@@ -25,7 +27,8 @@ const ignoredNames = new Set([
   '.DS_Store',
   'node_modules',
   '_summary.txt',
-  '_summary.json'
+  '_summary.json',
+  '_index.json'
 ]);
 
 const hiddenProjectDirectoryNames = new Set([
@@ -235,6 +238,7 @@ function isRootPath(relativePath) {
 function shouldSkipManifestEntry(relativePath, entry) {
   if (ignoredNames.has(entry.name)) return true;
   if (isRootPath(relativePath) && functionalFiles.has(entry.name)) return true;
+  if (isRootPath(relativePath) && entry.isDirectory() && entry.name === draftFolderName) return true;
   if (isRootPath(relativePath) && entry.isDirectory() && hiddenProjectDirectoryNames.has(entry.name)) return true;
   return false;
 }
@@ -269,6 +273,13 @@ function normalizeOrder(value) {
   return Number.isFinite(order) ? order : 0;
 }
 
+function parseShanghaiDateTime(value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/.exec(String(value || '').trim());
+  return match
+    ? new Date(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}+08:00`)
+    : null;
+}
+
 function readFolderMetadata(folderPath) {
   const metadataPath = path.join(folderPath, '_summary.json');
   if (fs.existsSync(metadataPath)) {
@@ -290,6 +301,45 @@ function readFolderMetadata(folderPath) {
   if (!fs.existsSync(summaryPath)) return { summary: '', id: '', order: 0 };
   const summary = fs.readFileSync(summaryPath, 'utf8').trim();
   return { summary, id: '', order: 0 };
+}
+
+function readDraftManifestItems() {
+  const draftRoot = path.join(privateRoot, draftFolderName);
+  const indexPath = path.join(draftRoot, draftIndexName);
+  if (!fs.existsSync(draftRoot) || !fs.existsSync(indexPath)) return [];
+
+  let index;
+  try {
+    index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+  } catch (error) {
+    console.warn(`Ignoring invalid draft index: ${indexPath}`);
+    return [];
+  }
+  if (!Array.isArray(index?.files)) return [];
+
+  return index.files
+    .filter((item) => {
+      if (!item || typeof item.file !== 'string' || !item.file.trim()) return false;
+      const source = path.join(draftRoot, path.basename(item.file));
+      return fs.existsSync(source) &&
+        fs.statSync(source).isFile() &&
+        parseShanghaiDateTime(item.expiresAt)?.getTime() > Date.now();
+    })
+    .map((item) => {
+      const fileName = path.basename(item.file);
+      const relativePath = path.posix.join(draftFolderName, fileName);
+      const source = path.join(draftRoot, fileName);
+      return {
+        type: 'file',
+        name: fileName,
+        path: relativePath,
+        date: getPathDate(relativePath, source),
+        summary: fileName,
+        createdAt: String(item.createdAt || ''),
+        expiresAt: String(item.expiresAt || '')
+      };
+    })
+    .sort((left, right) => new Date(right.date) - new Date(left.date));
 }
 
 function buildProjectManifestTree(sourcePath, relativePath = '', tree = {}) {
@@ -342,7 +392,8 @@ function writeProjectManifest() {
   const manifest = {
     version: 1,
     generatedAt: new Date().toISOString(),
-    tree: buildProjectManifestTree(privateRoot)
+    tree: buildProjectManifestTree(privateRoot),
+    drafts: readDraftManifestItems()
   };
   fs.writeFileSync(path.join(outputRoot, 'projects.json'), JSON.stringify(manifest, null, 2));
 }
@@ -399,7 +450,11 @@ function processPrivateEntry(sourcePath, relativePath = '') {
     const extension = path.extname(entry.name).toLowerCase();
     ensureDir(path.dirname(target));
     if (extension === '.html') {
-      fs.writeFileSync(target, makeEncryptedPage(fs.readFileSync(source, 'utf8')));
+      if (relativePath.split(path.sep)[0] === draftFolderName) {
+        fs.copyFileSync(source, target);
+      } else {
+        fs.writeFileSync(target, makeEncryptedPage(fs.readFileSync(source, 'utf8')));
+      }
     } else {
       fs.copyFileSync(source, target);
     }

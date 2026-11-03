@@ -15,6 +15,7 @@ export function initSidebar({ api, showMessage }) {
   const scopeLabel = document.getElementById('sidebar-scope-label');
   const scopeMenu = document.getElementById('sidebar-scope-menu');
   const scopeButtons = Array.from(document.querySelectorAll('[data-sidebar-scope]'));
+  const draftScopeButton = document.getElementById('sidebar-draft-scope-btn');
   const cache = new Map();
   const storyUrlCache = new Map();
   const pathNames = new Map([['', '项目列表']]);
@@ -24,6 +25,8 @@ export function initSidebar({ api, showMessage }) {
   let hideTimer = null;
   let scopeMenuHideTimer = null;
   let scopeMenuPinned = false;
+  let draftAvailable = false;
+  let currentPath = '';
 
   function rootCacheKey(targetScope = scope) {
     return `__root_projects__:${targetScope}`;
@@ -37,6 +40,7 @@ export function initSidebar({ api, showMessage }) {
     scopeButtons.forEach((button) => {
       button.classList.toggle('sidebar-scope-btn-active', button.dataset.sidebarScope === scope);
     });
+    draftScopeButton.classList.toggle('hidden', !draftAvailable);
     scopeLabel.textContent = scope === 'all' ? '全部' : scope;
   }
 
@@ -225,6 +229,7 @@ export function initSidebar({ api, showMessage }) {
   }
 
   async function load(path, customTitle = null, customStoryId = null) {
+    currentPath = path;
     loading.classList.remove('hidden');
     list.replaceChildren();
     title.textContent = customTitle || pathNames.get(path) || (path ? path.split('/').pop() : '项目列表');
@@ -266,6 +271,27 @@ export function initSidebar({ api, showMessage }) {
     }
   }
 
+  async function refreshDraftAvailability() {
+    try {
+      const items = await api.fetchDraftItems();
+      const nextAvailable = items.length > 0;
+      const cachedItems = cache.get(rootCacheKey('draft'));
+      const changed = !cachedItems || cachedItems.length !== items.length;
+      draftAvailable = nextAvailable;
+      renderScopeControl();
+
+      if (!changed) return;
+      cache.set(rootCacheKey('draft'), items);
+      if (scope === 'draft' && !pathIsRoot()) load('');
+    } catch {
+      // Keep the current draft entry when a transient public-manifest request fails.
+    }
+  }
+
+  function pathIsRoot() {
+    return currentPath === '';
+  }
+
   scopeButtons.forEach((button) => {
     button.addEventListener('click', (event) => {
       event.stopPropagation();
@@ -305,6 +331,8 @@ export function initSidebar({ api, showMessage }) {
     }, 1000);
   });
   renderScopeControl();
+  refreshDraftAvailability();
+  setInterval(refreshDraftAvailability, 60 * 1000);
 
   return {
     getCachedRootItems(targetScope = 'all') {
@@ -313,6 +341,7 @@ export function initSidebar({ api, showMessage }) {
     load,
     reset() {
       cache.clear();
+      refreshDraftAvailability();
     }
   };
 }

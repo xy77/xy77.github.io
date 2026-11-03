@@ -157,9 +157,14 @@
     height: 22px;
 }
 .switch input { 
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
     opacity: 0;
-    width: 0;
-    height: 0;
+    cursor: pointer;
 }
 .slider {
     position: absolute;
@@ -191,6 +196,28 @@ input:focus + .slider {
 }
 input:checked + .slider:before {
     transform: translateX(22px);
+}
+.draft-duration-btn {
+    min-width: 4.25rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: 0.45rem;
+    color: #4b5563;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    transition: background-color .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.draft-duration-btn:hover {
+    color: #1f2937;
+}
+[hidden] {
+    display: none !important;
+}
+.draft-duration-btn-active,
+.draft-duration-btn-active:hover {
+    background-color: #00a63e;
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(0, 166, 62, .24);
 }
 /* 侧边栏滚动条样式 */
 #github-sidebar ::-webkit-scrollbar {

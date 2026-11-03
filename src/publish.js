@@ -27,6 +27,14 @@ function normalizeOrder(value) {
   return Number.isFinite(order) ? order : 0;
 }
 
+const draftFolderName = 'draft';
+const draftIndexName = '_index.json';
+const draftDurationOptions = new Map([
+  [60, '1 小时'],
+  [1440, '24 小时'],
+  [4320, '72 小时']
+]);
+
 function parseProjectMetadata(value, fallbackSummary) {
   if (!value || typeof value !== 'object') {
     return { summary: fallbackSummary, id: '', order: 0 };
@@ -63,10 +71,74 @@ function getShanghaiDateParts() {
   };
 }
 
+function formatShanghaiDateTime(date) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+  const value = (type) => parts.find((part) => part.type === type)?.value || '';
+  return `${value('year')}-${value('month')}-${value('day')} ${value('hour') === '24' ? '00' : value('hour')}:${value('minute')}:${value('second')}`;
+}
+
+function getShanghaiCompactTimestamp() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+  const value = (type, length = 2) => (parts.find((part) => part.type === type)?.value || '').padStart(length, '0');
+  return `${value('year')}${value('month')}${value('day')}${value('hour') === '24' ? '00' : value('hour')}${value('minute')}${value('second')}`;
+}
+
+function extractDraftTitle(html) {
+  try {
+    return new DOMParser().parseFromString(html, 'text/html').title.trim();
+  } catch {
+    const match = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
+    return match ? match[1].replace(/<[^>]*>/g, '').trim() : '';
+  }
+}
+
+function normalizeDraftFileBaseName(value) {
+  const normalized = String(value || '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\.html$/i, '')
+    .replace(/^\.+|\.+$/g, '');
+  return normalized || getShanghaiCompactTimestamp();
+}
+
+function getDraftFileName(content, existingNames) {
+  const baseName = normalizeDraftFileBaseName(extractDraftTitle(content));
+  let fileName = `${baseName}.html`;
+  let suffix = 0;
+  while (existingNames.has(fileName)) {
+    suffix += 1;
+    fileName = `${baseName}-${suffix}.html`;
+  }
+  return fileName;
+}
+
 export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
   const publishButton = document.getElementById('publish-btn');
   const modal = document.getElementById('publish-modal');
   const password = document.getElementById('publish-password');
+  const temporarySwitch = document.getElementById('temporary-file-switch');
+  const standardFields = document.getElementById('publish-standard-fields');
+  const draftFields = document.getElementById('publish-draft-fields');
+  const durationButtons = Array.from(document.querySelectorAll('.draft-duration-btn'));
   const projectContainer = document.getElementById('project-container');
   const addProjectButton = document.getElementById('add-project-btn');
   const newProjectContainer = document.getElementById('new-project-container');
@@ -83,6 +155,8 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
   let selectedProjectKey = null;
   let isNewProjectMode = false;
   let projectButtonsExpanded = false;
+  let selectedDraftDuration = 60;
+  let isSubmitting = false;
 
   function toPublishFolder(item) {
     return {
@@ -154,9 +228,26 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     }
   }
 
+  function renderPublishMode() {
+    standardFields.hidden = temporarySwitch.checked;
+    draftFields.hidden = !temporarySwitch.checked;
+    draftFields.classList.remove('hidden');
+  }
+
+  function renderDraftDuration() {
+    durationButtons.forEach((button) => {
+      button.classList.toggle('draft-duration-btn-active', Number(button.dataset.duration) === selectedDraftDuration);
+    });
+  }
+
   function open() {
+    if (!tokenStore.get()) return showMessage('发布凭据未设置', true);
     const content = editor.getContent();
     if (!content.trim()) return showMessage('不能为空', true);
+    temporarySwitch.checked = false;
+    selectedDraftDuration = 60;
+    renderDraftDuration();
+    renderPublishMode();
     extensionLabel.textContent = getExtension(detectType(content));
     modal.classList.replace('hidden', 'flex');
     tokenStore.updateStatus();
@@ -227,14 +318,95 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     if (!response.ok) throw new Error('项目资料保存失败');
   }
 
+  async function readDraftState(token) {
+    const [directoryFile, indexFile] = await Promise.all([
+      getFile(draftFolderName, token),
+      getFile(`${draftFolderName}/${draftIndexName}`, token)
+    ]);
+    const directoryItems = Array.isArray(directoryFile) ? directoryFile : [];
+    const existingNames = new Set(
+      directoryItems.filter((item) => item.type === 'file').map((item) => item.name)
+    );
+    let records = [];
+    if (indexFile) {
+      try {
+        const value = JSON.parse(decodeContent(indexFile.content));
+        records = Array.isArray(value?.files)
+          ? value.files.filter((item) => item && typeof item.file === 'string' && item.file.trim())
+          : [];
+      } catch {
+        throw new Error('临时文件索引格式错误');
+      }
+    }
+    return { existingNames, records, indexSha: indexFile?.sha || null };
+  }
+
+  async function submitDraft(token) {
+    if (isSubmitting) return;
+    const rawContent = editor.getFormattedCode();
+    if (!rawContent.trim()) return showMessage('不能为空', true);
+    if (!draftDurationOptions.has(selectedDraftDuration)) return showMessage('请选择有效期', true);
+
+    const draftState = await readDraftState(token);
+    const fileName = getDraftFileName(rawContent, draftState.existingNames);
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + selectedDraftDuration * 60 * 1000);
+    const record = {
+      file: fileName,
+      createdAt: formatShanghaiDateTime(now),
+      expiresAt: formatShanghaiDateTime(expiresAt)
+    };
+    const path = `${draftFolderName}/${fileName}`;
+
+    close();
+    publishButton.disabled = true;
+    showMessage('正在推送临时文件...');
+
+    const fileResponse = await putFile(path, rawContent, token, `deploy temporary file: ${path}`);
+    if (!fileResponse.ok) throw new Error('临时文件推送失败，请检查仓库权限');
+
+    const nextRecords = [...draftState.records, record];
+    const indexResponse = await putFile(
+      `${draftFolderName}/${draftIndexName}`,
+      `${JSON.stringify({ files: nextRecords }, null, 2)}\n`,
+      token,
+      'update temporary file index',
+      draftState.indexSha
+    );
+    if (!indexResponse.ok) throw new Error('临时文件索引更新失败');
+
+    api.reset();
+    sidebar.reset();
+    const url = `${config.publicBaseUrl}/${path}`;
+    await copyText(url);
+    showMessage(`发布成功！已复制链接：${url}`);
+  }
+
   async function submit() {
+    if (isSubmitting) return;
+    const token = tokenStore.get();
+    if (!token) return showMessage('发布凭据未设置', true);
+    if (temporarySwitch.checked) {
+      try {
+        isSubmitting = true;
+        confirm.disabled = true;
+        await submitDraft(token);
+      } catch (error) {
+        showMessage(error.message || '临时文件发布失败', true);
+      } finally {
+        isSubmitting = false;
+        confirm.disabled = false;
+        publishButton.disabled = false;
+        fileName.value = '';
+      }
+      return;
+    }
+
     const { month, day } = getShanghaiDateParts();
     const inputPassword = password.value.trim();
     const publishScope = inputPassword === day + day ? '1' : inputPassword === `${month}${day}` ? '2' : null;
     if (!publishScope) return showMessage('密码错误', true);
 
-    const token = tokenStore.get();
-    if (!token) return showMessage('请先设置发布凭据', true);
     const folderName = isNewProjectMode ? newProjectName.value.trim() : selectedFolder;
     const selectedMeta = folders.find((folder) => folder.key === selectedProjectKey);
     const enteredProjectId = projectId.value.trim();
@@ -304,6 +476,14 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
       fileName.value = '';
     }
   }
+
+  temporarySwitch.addEventListener('change', renderPublishMode);
+  durationButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      selectedDraftDuration = Number(button.dataset.duration);
+      renderDraftDuration();
+    });
+  });
 
   publishButton.addEventListener('click', open);
   cancel.addEventListener('click', close);
