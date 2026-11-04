@@ -59,46 +59,31 @@ async function copyText(value) {
   }
 }
 
-function getShanghaiDateParts() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Shanghai',
-    month: 'numeric',
-    day: 'numeric'
-  }).formatToParts(new Date());
+function getShanghaiDateTimeParts(date = new Date()) {
+  const shifted = new Date(date.getTime() + 8 * 60 * 60 * 1000);
   return {
-    month: parts.find((part) => part.type === 'month').value,
-    day: parts.find((part) => part.type === 'day').value
+    year: String(shifted.getUTCFullYear()),
+    month: String(shifted.getUTCMonth() + 1).padStart(2, '0'),
+    day: String(shifted.getUTCDate()).padStart(2, '0'),
+    hour: String(shifted.getUTCHours()).padStart(2, '0'),
+    minute: String(shifted.getUTCMinutes()).padStart(2, '0'),
+    second: String(shifted.getUTCSeconds()).padStart(2, '0')
   };
 }
 
+function getShanghaiDateParts() {
+  const { month, day } = getShanghaiDateTimeParts();
+  return { month: String(Number(month)), day: String(Number(day)) };
+}
+
 function formatShanghaiDateTime(date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(date);
-  const value = (type) => parts.find((part) => part.type === type)?.value || '';
-  return `${value('year')}-${value('month')}-${value('day')} ${value('hour') === '24' ? '00' : value('hour')}:${value('minute')}:${value('second')}`;
+  const { year, month, day, hour, minute, second } = getShanghaiDateTimeParts(date);
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
 }
 
 function getShanghaiCompactTimestamp() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Shanghai',
-    year: '2-digit',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
-  }).formatToParts(new Date());
-  const value = (type, length = 2) => (parts.find((part) => part.type === type)?.value || '').padStart(length, '0');
-  return `${value('year')}${value('month')}${value('day')}${value('hour') === '24' ? '00' : value('hour')}${value('minute')}${value('second')}`;
+  const { year, month, day, hour, minute, second } = getShanghaiDateTimeParts();
+  return `${year.slice(-2)}${month}${day}${hour}${minute}${second}`;
 }
 
 function extractDraftTitle(html) {
@@ -342,7 +327,6 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
   }
 
   async function submitDraft(token) {
-    if (isSubmitting) return;
     const rawContent = editor.getFormattedCode();
     if (!rawContent.trim()) return showMessage('不能为空', true);
     if (!draftDurationOptions.has(selectedDraftDuration)) return showMessage('请选择有效期', true);
@@ -435,6 +419,8 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     }
 
     const path = `${folder}/${safeFileName}${extension}`;
+    isSubmitting = true;
+    confirm.disabled = true;
     close();
     publishButton.disabled = true;
     showMessage('正在推送...');
@@ -472,6 +458,8 @@ export function initPublish({ editor, api, sidebar, tokenStore, showMessage }) {
     } catch (error) {
       showMessage(error.message, true);
     } finally {
+      isSubmitting = false;
+      confirm.disabled = false;
       publishButton.disabled = false;
       fileName.value = '';
     }

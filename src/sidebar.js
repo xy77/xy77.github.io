@@ -276,20 +276,26 @@ export function initSidebar({ api, showMessage }) {
       const items = await api.fetchDraftItems();
       const nextAvailable = items.length > 0;
       const cachedItems = cache.get(rootCacheKey('draft'));
-      const changed = !cachedItems || cachedItems.length !== items.length;
+      const signature = (values) => JSON.stringify(
+        (values || []).map((item) => [item.path, item.date, item.createdAt, item.expiresAt])
+      );
+      const changed = signature(cachedItems) !== signature(items);
       draftAvailable = nextAvailable;
-      renderScopeControl();
+      if (changed) cache.set(rootCacheKey('draft'), items);
 
-      if (!changed) return;
-      cache.set(rootCacheKey('draft'), items);
-      if (scope === 'draft' && !pathIsRoot()) load('');
+      if (scope === 'draft' && !nextAvailable) {
+        scope = 'all';
+        renderScopeControl();
+        closeScopeMenu();
+        if (currentPath === '') load('');
+        return;
+      }
+
+      renderScopeControl();
+      if (changed && scope === 'draft' && currentPath === '') renderList(items);
     } catch {
       // Keep the current draft entry when a transient public-manifest request fails.
     }
-  }
-
-  function pathIsRoot() {
-    return currentPath === '';
   }
 
   scopeButtons.forEach((button) => {

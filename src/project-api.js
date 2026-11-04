@@ -63,8 +63,8 @@ function normalizeProjectMetadata(value, fallbackSummary) {
 export function createProjectApi(getToken) {
   let publicManifest = null;
 
-  async function fetchPublicProjectManifest() {
-    if (publicManifest) return publicManifest;
+  async function fetchPublicProjectManifest(refresh = false) {
+    if (!refresh && publicManifest) return publicManifest;
     const response = await fetch(`${config.publicBaseUrl}/${config.projectManifest}?t=${Date.now()}`, {
       cache: 'no-store'
     });
@@ -82,7 +82,7 @@ export function createProjectApi(getToken) {
   }
 
   async function fetchPublicDraftItems() {
-    const manifest = await fetchPublicProjectManifest();
+    const manifest = await fetchPublicProjectManifest(true);
     return normalizeDraftRecords({ files: manifest.drafts || [] })
       .filter(isDraftRecordVisible)
       .map((record) => ({
