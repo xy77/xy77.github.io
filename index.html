@@ -167,8 +167,8 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">文件名</label>
                                 <div class="flex items-center">
-                                    <input type="text" id="file-name-input" placeholder="" class="flex-grow min-w-0 p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
-                                    <span id="publish-ext-label" class="bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 py-2 text-gray-500 text-sm">.html</span>
+                                    <input type="text" id="file-name-input" placeholder="" class="h-[42px] flex-grow min-w-0 p-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 outline-none border-r-0 transition-all">
+                                    <span id="publish-ext-label" class="h-[42px] inline-flex items-center bg-gray-100 border border-gray-300 border-l-0 rounded-r-lg px-3 text-gray-500 text-sm">.html</span>
                                 </div>
                             </div>
                         </div>
@@ -195,20 +195,21 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4 items-end">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1" for="project-id-input">ID</label>
-                        <input type="text" id="project-id-input" placeholder="用于关联禅道需求" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                        <div class="grid grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1" for="project-id-input">ID</label>
+                                <input type="text" id="project-id-input" placeholder="用于关联禅道需求" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                            </div>
+                            <div class="h-[42px] flex items-center justify-between bg-gray-50 px-3 rounded-lg border border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">加密</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="encryption-switch" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="h-[42px] flex items-center justify-between bg-gray-50 px-3 rounded-lg border border-gray-100">
-                        <span class="text-sm font-medium text-gray-700">加密</span>
-                        <label class="switch">
-                            <input type="checkbox" id="encryption-switch" checked>
-                            <span class="slider"></span>
-                        </label>
                 </div>
-                    </div>
-            </div>
             <div class="bg-gray-50 px-6 py-4 flex justify-end space-x-3">
                 <button id="modal-cancel" class="px-4 py-2 text-gray-600 hover:text-gray-800 font-medium">取消</button>
                 <button id="modal-confirm" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors shadow-md">发布</button>
